@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1f2933" />
+  <title>Archive</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="pinScreen" class="pin-screen">
+    <section class="pin-card">
+      <p class="app-kicker">Private Records</p>
+      <h1>Archive</h1>
+      <p class="muted">PINを入力してください</p>
+      <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN" />
+      <button id="unlockButton" class="primary-button">開く</button>
+      <p id="pinMessage" class="error-message"></p>
+    </section>
+  </div>
+
+  <div id="appRoot" class="app-root hidden">
+    <header class="app-header">
+      <div>
+        <p class="app-kicker">Document Archive</p>
+        <h1>Archive</h1>
+      </div>
+      <button id="lockButton" class="ghost-button">ロック</button>
+    </header>
+
+    <main class="layout">
+      <section class="control-panel">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">全件</span>
+            <strong id="totalCount">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">お気に入り</span>
+            <strong id="favoriteCount">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">ゴミ箱</span>
+            <strong id="trashCount">0</strong>
+          </div>
+        </div>
+
+        <div class="search-row">
+          <input id="searchInput" type="search" placeholder="メモ・タグ・カテゴリで検索" />
+          <select id="filterSelect">
+            <option value="active">通常</option>
+            <option value="favorite">お気に入り</option>
+            <option value="nsfw">NSFW</option>
+            <option value="trash">ゴミ箱</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="editor-panel">
+        <h2>画像登録</h2>
+        <div class="form-grid">
+          <label>
+            画像
+            <input id="imageInput" type="file" accept="image/*" />
+          </label>
+          <label>
+            カテゴリ
+            <select id="categoryInput">
+              <option value="未分類">未分類</option>
+              <option value="イラスト">イラスト</option>
+              <option value="漫画">漫画</option>
+              <option value="アニメ">アニメ</option>
+              <option value="ロボ">ロボ</option>
+              <option value="服">服</option>
+              <option value="背景">背景</option>
+              <option value="ポーズ">ポーズ</option>
+              <option value="表情">表情</option>
+              <option value="構図">構図</option>
+              <option value="色彩">色彩</option>
+              <option value="その他">その他</option>
+            </select>
+          </label>
+          <label>
+            タグ（カンマ区切り）
+            <input id="tagsInput" type="text" placeholder="黒髪, 逆光, 構図" />
+          </label>
+          <label>
+            メモ
+            <textarea id="memoInput" rows="4" placeholder="なぜ保存したか、何が刺さったか"></textarea>
+          </label>
+        </div>
+
+        <div class="check-row">
+          <label><input id="favoriteInput" type="checkbox" /> お気に入り</label>
+          <label><input id="nsfwInput" type="checkbox" /> NSFW</label>
+        </div>
+
+        <button id="saveButton" class="primary-button">保存</button>
+        <p id="formMessage" class="form-message"></p>
+      </section>
+
+      <section class="backup-panel">
+        <h2>バックアップ</h2>
+        <div class="button-row">
+          <button id="exportButton" class="secondary-button">JSON Export</button>
+          <label class="import-label">
+            JSON Import
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+        </div>
+      </section>
+
+      <section class="list-panel">
+        <h2>一覧</h2>
+        <div id="archiveList" class="archive-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="detailDialog" class="detail-dialog">
+    <button id="closeDetailButton" class="close-button">×</button>
+    <img id="detailImage" alt="保存画像" />
+    <div class="detail-body">
+      <p id="detailCategory" class="pill"></p>
+      <p id="detailMemo"></p>
+      <div id="detailTags" class="tag-row"></div>
+      <p id="detailDate" class="muted"></p>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

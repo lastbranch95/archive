@@ -1,0 +1,10 @@
+{
+  "name": "Archive",
+  "short_name": "Archive",
+  "description": "Private local image archive",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#eef1f4",
+  "theme_color": "#1f2933",
+  "icons": []
+}
