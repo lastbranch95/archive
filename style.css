@@ -451,6 +451,7 @@ input[type="file"] {
   font-size: 0.9rem;
   word-break: break-word;
   display: -webkit-box;
+  line-clamp: 1;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
