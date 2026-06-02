@@ -256,7 +256,7 @@
 
       <section class="settings-panel">
         <h2>アプリ情報</h2>
-        <p class="muted">Archive version <span id="appVersionText">0.3.1</span></p>
+        <p class="muted">Archive version <span id="appVersionText">0.3.2</span></p>
       </section>
     </main>
   </div>
@@ -267,7 +267,14 @@
     <img id="detailImage" alt="保存画像" />
 
     <div class="detail-body">
-      <p id="detailDate" class="muted"></p>
+      <div class="detail-meta-row">
+        <p id="detailDate" class="muted"></p>
+        <button id="toggleImageInfoButton" class="mini-button" type="button">
+          画像情報
+        </button>
+      </div>
+
+      <div id="imageInfoPanel" class="image-info-panel hidden"></div>
 
       <label>
         カテゴリ

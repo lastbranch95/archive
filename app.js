@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.3.1";
+const APP_VERSION = "0.3.2";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
@@ -19,6 +19,7 @@ let nsfwUnlocked = false;
 let autoLockTimerId = null;
 let savedScrollY = 0;
 let openDialogCount = 0;
+let currentDetailImageInfoText = "";
 
 const pinScreen = document.getElementById("pinScreen");
 const appRoot = document.getElementById("appRoot");
@@ -61,6 +62,7 @@ function bindEvents() {
   document.getElementById("closeDetailButton").addEventListener("click", closeDetail);
   document.getElementById("saveDetailButton").addEventListener("click", saveDetailChanges);
   document.getElementById("detailDeleteButton").addEventListener("click", toggleDeleteFromDetail);
+  document.getElementById("toggleImageInfoButton").addEventListener("click", toggleImageInfoPanel);
 
   document.getElementById("detailImage").addEventListener("click", openImagePreview);
   document.getElementById("closePreviewButton").addEventListener("click", closeImagePreview);
@@ -508,6 +510,12 @@ function openDetail(item) {
   document.getElementById("detailDate").textContent =
     `保存日: ${formatDate(item.createdAt)}\n更新日: ${formatDate(item.updatedAt)}`;
 
+  currentDetailImageInfoText = "画像情報を取得中です";
+  document.getElementById("imageInfoPanel").classList.add("hidden");
+  document.getElementById("imageInfoPanel").textContent = "";
+  document.getElementById("toggleImageInfoButton").textContent = "画像情報";
+  updateCurrentImageInfo(item.image);
+
   document.getElementById("detailCategoryInput").value = item.category || "未分類";
   document.getElementById("detailTagsInput").value = (item.tags || []).join(", ");
   document.getElementById("detailMemoInput").value = item.memo || "";
@@ -671,6 +679,92 @@ function addTagToInput(inputId, tag) {
 
   input.value = tags.join(", ");
   input.focus();
+}
+
+async function updateCurrentImageInfo(dataUrl) {
+  const mimeType = getMimeTypeFromDataUrl(dataUrl);
+  const byteSize = getByteSizeFromDataUrl(dataUrl);
+
+  try {
+    const dimensions = await getImageDimensions(dataUrl);
+
+    currentDetailImageInfoText = [
+      `形式: ${mimeType || "不明"}`,
+      `サイズ: ${dimensions.width} × ${dimensions.height}px`,
+      `推定容量: ${formatBytes(byteSize)}`
+    ].join("\n");
+  } catch (error) {
+    currentDetailImageInfoText = [
+      `形式: ${mimeType || "不明"}`,
+      "サイズ: 取得できませんでした",
+      `推定容量: ${formatBytes(byteSize)}`
+    ].join("\n");
+  }
+
+  const panel = document.getElementById("imageInfoPanel");
+  if (!panel.classList.contains("hidden")) {
+    panel.textContent = currentDetailImageInfoText;
+  }
+}
+
+function toggleImageInfoPanel() {
+  const panel = document.getElementById("imageInfoPanel");
+  const button = document.getElementById("toggleImageInfoButton");
+
+  const willShow = panel.classList.contains("hidden");
+
+  if (willShow) {
+    panel.textContent = currentDetailImageInfoText || "画像情報を取得中です";
+    panel.classList.remove("hidden");
+    button.textContent = "閉じる";
+  } else {
+    panel.classList.add("hidden");
+    button.textContent = "画像情報";
+  }
+
+  resetAutoLockTimer();
+}
+
+function getMimeTypeFromDataUrl(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:([^;]+);base64,/);
+  return match ? match[1] : "";
+}
+
+function getByteSizeFromDataUrl(dataUrl) {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  const padding = (base64.match(/=+$/) || [""])[0].length;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+
+function getImageDimensions(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => {
+      resolve({
+        width: image.naturalWidth,
+        height: image.naturalHeight
+      });
+    };
+
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "不明";
+
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function changePin() {

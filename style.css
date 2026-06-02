@@ -537,9 +537,43 @@ input[type="file"] {
   margin-top: 8px;
 }
 
+.detail-meta-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.detail-meta-row #detailDate {
+  margin: 0;
+}
+
 #detailDate {
   white-space: pre-line;
   line-height: 1.5;
+}
+
+.mini-button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f6f8fa;
+  color: var(--text);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.image-info-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f6f8fa;
+  color: var(--text);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  white-space: pre-line;
 }
 
 #detailTagsInput {
@@ -639,5 +673,15 @@ body.blur-nsfw .archive-card.is-nsfw img {
   .button-row .import-label,
   .button-row .danger-button {
     flex: 1 1 140px;
+  }
+}
+
+@media (max-width: 420px) {
+  .detail-meta-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mini-button {
+    justify-self: start;
   }
 }
