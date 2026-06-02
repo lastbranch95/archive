@@ -685,3 +685,8 @@ body.blur-nsfw .archive-card.is-nsfw img {
     justify-self: start;
   }
 }
+/* v0.3.3: 閉じたdialogがページ下部に残る問題を修正 */
+.detail-dialog:not([open]),
+.image-preview-dialog:not([open]) {
+  display: none;
+}
