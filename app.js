@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.2.2";
 const DEFAULT_PIN = "0908";
 
 let db;
@@ -44,6 +44,7 @@ function bindEvents() {
   document.getElementById("importInput").addEventListener("change", importJson);
 
   document.getElementById("closeDetailButton").addEventListener("click", () => {
+    selectedDetailItemId = null;
     document.getElementById("detailDialog").close();
   });
 
@@ -140,7 +141,9 @@ function putItem(item) {
 }
 
 async function loadAndRender() {
-  archiveItems = await getAllItems();
+  const items = await getAllItems();
+
+  archiveItems = items.map(normalizeItem);
 
   archiveItems.sort((a, b) => {
     const dateA = new Date(a.createdAt || 0);
@@ -148,6 +151,7 @@ async function loadAndRender() {
     return dateB - dateA;
   });
 
+  renderTagSuggestions();
   renderStats();
   renderArchiveList();
 }
@@ -198,11 +202,38 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function normalizeItem(item) {
+  return {
+    ...item,
+    tags: normalizeTagList(item.tags),
+    isFavorite: Boolean(item.isFavorite),
+    isNsfw: Boolean(item.isNsfw),
+    isDeleted: Boolean(item.isDeleted),
+    deletedAt: item.deletedAt || null,
+    createdAt: item.createdAt || new Date().toISOString(),
+    updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+  };
+}
+
+function normalizeTagList(value) {
+  const values = Array.isArray(value) ? value : [value];
+  const tags = [];
+
+  values.forEach((item) => {
+    String(item || "")
+      .split(/[、,，\n]/)
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .forEach((tag) => {
+        if (!tags.includes(tag)) tags.push(tag);
+      });
+  });
+
+  return tags;
+}
+
 function parseTags(value) {
-  return String(value || "")
-    .split(/[、,]/)
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+  return normalizeTagList(value);
 }
 
 function clearForm() {
@@ -350,7 +381,7 @@ function openDetail(item) {
 
   document.getElementById("detailImage").src = item.image;
   document.getElementById("detailDate").textContent =
-    `保存日: ${formatDate(item.createdAt)} / 更新日: ${formatDate(item.updatedAt)}`;
+    `保存日: ${formatDate(item.createdAt)}\n更新日: ${formatDate(item.updatedAt)}`;
 
   document.getElementById("detailCategoryInput").value = item.category || "未分類";
   document.getElementById("detailTagsInput").value = (item.tags || []).join(", ");
@@ -379,6 +410,29 @@ async function saveDetailChanges() {
 
   selectedDetailItemId = null;
   document.getElementById("detailDialog").close();
+}
+
+function renderTagSuggestions() {
+  const datalist = document.getElementById("tagSuggestions");
+  if (!datalist) return;
+
+  const tags = new Set();
+
+  archiveItems.forEach((item) => {
+    (item.tags || []).forEach((tag) => {
+      if (tag) tags.add(tag);
+    });
+  });
+
+  datalist.innerHTML = "";
+
+  [...tags]
+    .sort((a, b) => a.localeCompare(b, "ja"))
+    .forEach((tag) => {
+      const option = document.createElement("option");
+      option.value = tag;
+      datalist.appendChild(option);
+    });
 }
 
 function formatDate(value) {
@@ -437,16 +491,10 @@ async function importJson(event) {
     for (const item of data) {
       if (!item.id || !item.image) continue;
 
-      await putItem({
+      await putItem(normalizeItem({
         ...item,
-        tags: Array.isArray(item.tags) ? item.tags : [],
-        isFavorite: Boolean(item.isFavorite),
-        isNsfw: Boolean(item.isNsfw),
-        isDeleted: Boolean(item.isDeleted),
-        deletedAt: item.deletedAt || null,
-        createdAt: item.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      });
+      }));
     }
 
     event.target.value = "";

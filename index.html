@@ -104,7 +104,12 @@
 
           <label>
             タグ（カンマ区切り）
-            <input id="tagsInput" type="text" placeholder="黒髪, 逆光, 構図" />
+            <input
+              id="tagsInput"
+              type="text"
+              list="tagSuggestions"
+              placeholder="黒髪, 逆光, 構図"
+            />
           </label>
 
           <label>
@@ -180,7 +185,7 @@
 
       <label>
         タグ（カンマ区切り）
-        <input id="detailTagsInput" type="text" />
+        <input id="detailTagsInput" type="text" list="tagSuggestions" />
       </label>
 
       <label>
@@ -204,6 +209,8 @@
       </div>
     </div>
   </dialog>
+
+  <datalist id="tagSuggestions"></datalist>
 
   <script src="app.js"></script>
 </body>
