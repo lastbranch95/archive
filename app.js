@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.3.1";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
@@ -17,6 +17,8 @@ let currentSearch = "";
 let selectedDetailItemId = null;
 let nsfwUnlocked = false;
 let autoLockTimerId = null;
+let savedScrollY = 0;
+let openDialogCount = 0;
 
 const pinScreen = document.getElementById("pinScreen");
 const appRoot = document.getElementById("appRoot");
@@ -56,12 +58,10 @@ function bindEvents() {
   document.getElementById("exportButton").addEventListener("click", exportJson);
   document.getElementById("importInput").addEventListener("change", importJson);
 
-  document.getElementById("closeDetailButton").addEventListener("click", () => {
-    selectedDetailItemId = null;
-    document.getElementById("detailDialog").close();
-  });
-
+  document.getElementById("closeDetailButton").addEventListener("click", closeDetail);
   document.getElementById("saveDetailButton").addEventListener("click", saveDetailChanges);
+  document.getElementById("detailDeleteButton").addEventListener("click", toggleDeleteFromDetail);
+
   document.getElementById("detailImage").addEventListener("click", openImagePreview);
   document.getElementById("closePreviewButton").addEventListener("click", closeImagePreview);
 
@@ -114,6 +114,7 @@ function lockApp() {
   if (filterSelect) filterSelect.value = "active";
 
   closeOpenDialogs();
+  forceUnlockBodyScroll();
 
   appRoot.classList.add("hidden");
   settingsRoot.classList.add("hidden");
@@ -139,10 +140,37 @@ function closeSettings() {
 }
 
 function closeOpenDialogs() {
-  ["detailDialog", "imagePreviewDialog"].forEach((id) => {
+  ["imagePreviewDialog", "detailDialog"].forEach((id) => {
     const dialog = document.getElementById(id);
     if (dialog && dialog.open) dialog.close();
   });
+}
+
+function lockBodyScroll() {
+  if (openDialogCount === 0) {
+    savedScrollY = window.scrollY;
+    document.body.style.top = `-${savedScrollY}px`;
+    document.body.classList.add("modal-open");
+  }
+
+  openDialogCount += 1;
+}
+
+function unlockBodyScroll() {
+  openDialogCount = Math.max(0, openDialogCount - 1);
+
+  if (openDialogCount === 0) {
+    document.body.classList.remove("modal-open");
+    document.body.style.top = "";
+    window.scrollTo(0, savedScrollY);
+  }
+}
+
+function forceUnlockBodyScroll() {
+  openDialogCount = 0;
+  document.body.classList.remove("modal-open");
+  document.body.style.top = "";
+  window.scrollTo(0, savedScrollY);
 }
 
 function handleFilterChange(event) {
@@ -351,6 +379,8 @@ function renderArchiveList() {
 
   filteredItems.forEach((item) => {
     const card = document.createElement("article");
+    const visibleTags = (item.tags || []).slice(0, 2);
+
     card.className = `archive-card${item.isNsfw ? " is-nsfw" : ""}`;
     card.setAttribute("role", "button");
     card.setAttribute("tabindex", "0");
@@ -373,18 +403,13 @@ function renderArchiveList() {
         <span class="pill">${escapeHtml(item.category || "未分類")}</span>
         <p class="card-memo">${escapeHtml(item.memo || "メモなし")}</p>
 
-        <div class="tag-row">
-          ${(item.tags || [])
-            .slice(0, 2)
-            .map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`)
-            .join("")}
-        </div>
-
-        <div class="card-actions">
-          <button data-action="delete" data-id="${item.id}">
-            ${item.isDeleted ? "復元" : "削除"}
-          </button>
-        </div>
+        ${visibleTags.length > 0 ? `
+          <div class="tag-row">
+            ${visibleTags
+              .map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`)
+              .join("")}
+          </div>
+        ` : ""}
       </div>
     `;
 
@@ -473,16 +498,6 @@ async function handleCardAction(event) {
 
     await putItem(item);
     await loadAndRender();
-    return;
-  }
-
-  if (action === "delete") {
-    item.isDeleted = !item.isDeleted;
-    item.deletedAt = item.isDeleted ? new Date().toISOString() : null;
-    item.updatedAt = new Date().toISOString();
-
-    await putItem(item);
-    await loadAndRender();
   }
 }
 
@@ -498,9 +513,21 @@ function openDetail(item) {
   document.getElementById("detailMemoInput").value = item.memo || "";
   document.getElementById("detailFavoriteInput").checked = Boolean(item.isFavorite);
   document.getElementById("detailNsfwInput").checked = Boolean(item.isNsfw);
+  document.getElementById("detailDeleteButton").textContent = item.isDeleted ? "復元" : "削除";
 
   document.getElementById("detailDialog").showModal();
+  lockBodyScroll();
   resetAutoLockTimer();
+}
+
+function closeDetail() {
+  selectedDetailItemId = null;
+
+  const detailDialog = document.getElementById("detailDialog");
+  if (detailDialog.open) {
+    detailDialog.close();
+    unlockBodyScroll();
+  }
 }
 
 async function saveDetailChanges() {
@@ -520,7 +547,43 @@ async function saveDetailChanges() {
   await loadAndRender();
 
   selectedDetailItemId = null;
-  document.getElementById("detailDialog").close();
+
+  const detailDialog = document.getElementById("detailDialog");
+  if (detailDialog.open) {
+    detailDialog.close();
+    unlockBodyScroll();
+  }
+
+  resetAutoLockTimer();
+}
+
+async function toggleDeleteFromDetail() {
+  if (!selectedDetailItemId) return;
+
+  const item = archiveItems.find((archiveItem) => archiveItem.id === selectedDetailItemId);
+  if (!item) return;
+
+  const ok = item.isDeleted
+    ? confirm("この画像を復元しますか？\n通常一覧に戻ります。")
+    : confirm("この画像をゴミ箱に移動しますか？\nあとでゴミ箱から復元できます。");
+
+  if (!ok) return;
+
+  item.isDeleted = !item.isDeleted;
+  item.deletedAt = item.isDeleted ? new Date().toISOString() : null;
+  item.updatedAt = new Date().toISOString();
+
+  await putItem(item);
+  await loadAndRender();
+
+  selectedDetailItemId = null;
+
+  const detailDialog = document.getElementById("detailDialog");
+  if (detailDialog.open) {
+    detailDialog.close();
+    unlockBodyScroll();
+  }
+
   resetAutoLockTimer();
 }
 
@@ -530,11 +593,17 @@ function openImagePreview() {
 
   document.getElementById("previewImage").src = src;
   document.getElementById("imagePreviewDialog").showModal();
+  lockBodyScroll();
   resetAutoLockTimer();
 }
 
 function closeImagePreview() {
-  document.getElementById("imagePreviewDialog").close();
+  const imagePreviewDialog = document.getElementById("imagePreviewDialog");
+
+  if (imagePreviewDialog.open) {
+    imagePreviewDialog.close();
+    unlockBodyScroll();
+  }
 }
 
 function renderTagSuggestions() {

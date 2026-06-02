@@ -143,19 +143,6 @@
         <p id="formMessage" class="form-message"></p>
       </section>
 
-      <section class="backup-panel">
-        <h2>バックアップ</h2>
-
-        <div class="button-row">
-          <button id="exportButton" class="secondary-button">JSON Export</button>
-
-          <label class="import-label">
-            JSON Import
-            <input id="importInput" type="file" accept="application/json" />
-          </label>
-        </div>
-      </section>
-
       <section class="list-panel">
         <h2>一覧</h2>
         <div id="archiveList" class="archive-list"></div>
@@ -252,17 +239,24 @@
         <h2>データ管理</h2>
 
         <div class="button-row">
+          <button id="exportButton" class="secondary-button">JSON Export</button>
+
+          <label class="import-label">
+            JSON Import
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+
           <button id="emptyTrashButton" class="danger-button">ゴミ箱を空にする</button>
         </div>
 
         <p class="muted small-note">
-          ゴミ箱を空にすると、削除済み画像は完全削除されます。
+          JSON Exportには画像本体が含まれます。ゴミ箱を空にすると削除済み画像は完全削除されます。
         </p>
       </section>
 
       <section class="settings-panel">
         <h2>アプリ情報</h2>
-        <p class="muted">Archive version <span id="appVersionText">0.3.0</span></p>
+        <p class="muted">Archive version <span id="appVersionText">0.3.1</span></p>
       </section>
     </main>
   </div>
@@ -322,6 +316,11 @@
       <div class="button-row">
         <button id="saveDetailButton" class="primary-button">変更を保存</button>
       </div>
+
+      <section class="danger-zone">
+        <h2>危険操作</h2>
+        <button id="detailDeleteButton" class="danger-button">削除</button>
+      </section>
     </div>
   </dialog>
 
