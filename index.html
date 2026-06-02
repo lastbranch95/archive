@@ -2,13 +2,17 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
   <meta name="theme-color" content="#1f2933" />
   <title>Archive</title>
-<link rel="manifest" href="manifest.webmanifest" />
-<link rel="icon" type="image/png" href="icons/favicon.png" />
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-<link rel="stylesheet" href="style.css" />
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="icons/favicon.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="pinScreen" class="pin-screen">
@@ -16,7 +20,15 @@
       <p class="app-kicker">Private Records</p>
       <h1>Archive</h1>
       <p class="muted">PINを入力してください</p>
-      <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN" />
+      <input
+        id="pinInput"
+        class="pin-input"
+        type="password"
+        inputmode="numeric"
+        maxlength="8"
+        autocomplete="off"
+        placeholder="PIN"
+      />
       <button id="unlockButton" class="primary-button">開く</button>
       <p id="pinMessage" class="error-message"></p>
     </section>
@@ -49,7 +61,11 @@
         </div>
 
         <div class="search-row">
-          <input id="searchInput" type="search" placeholder="メモ・タグ・カテゴリで検索" />
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="メモ・タグ・カテゴリで検索"
+          />
           <select id="filterSelect">
             <option value="active">通常</option>
             <option value="favorite">お気に入り</option>
@@ -61,11 +77,13 @@
 
       <section class="editor-panel">
         <h2>画像登録</h2>
+
         <div class="form-grid">
           <label>
             画像
             <input id="imageInput" type="file" accept="image/*" />
           </label>
+
           <label>
             カテゴリ
             <select id="categoryInput">
@@ -83,19 +101,31 @@
               <option value="その他">その他</option>
             </select>
           </label>
+
           <label>
             タグ（カンマ区切り）
             <input id="tagsInput" type="text" placeholder="黒髪, 逆光, 構図" />
           </label>
+
           <label>
             メモ
-            <textarea id="memoInput" rows="4" placeholder="なぜ保存したか、何が刺さったか"></textarea>
+            <textarea
+              id="memoInput"
+              rows="4"
+              placeholder="なぜ保存したか、何が刺さったか"
+            ></textarea>
           </label>
         </div>
 
         <div class="check-row">
-          <label><input id="favoriteInput" type="checkbox" /> お気に入り</label>
-          <label><input id="nsfwInput" type="checkbox" /> NSFW</label>
+          <label>
+            <input id="favoriteInput" type="checkbox" />
+            お気に入り
+          </label>
+          <label>
+            <input id="nsfwInput" type="checkbox" />
+            NSFW
+          </label>
         </div>
 
         <button id="saveButton" class="primary-button">保存</button>
@@ -104,8 +134,10 @@
 
       <section class="backup-panel">
         <h2>バックアップ</h2>
+
         <div class="button-row">
           <button id="exportButton" class="secondary-button">JSON Export</button>
+
           <label class="import-label">
             JSON Import
             <input id="importInput" type="file" accept="application/json" />
@@ -122,12 +154,54 @@
 
   <dialog id="detailDialog" class="detail-dialog">
     <button id="closeDetailButton" class="close-button">×</button>
+
     <img id="detailImage" alt="保存画像" />
+
     <div class="detail-body">
-      <p id="detailCategory" class="pill"></p>
-      <p id="detailMemo"></p>
-      <div id="detailTags" class="tag-row"></div>
       <p id="detailDate" class="muted"></p>
+
+      <label>
+        カテゴリ
+        <select id="detailCategoryInput">
+          <option value="未分類">未分類</option>
+          <option value="イラスト">イラスト</option>
+          <option value="漫画">漫画</option>
+          <option value="アニメ">アニメ</option>
+          <option value="ロボ">ロボ</option>
+          <option value="服">服</option>
+          <option value="背景">背景</option>
+          <option value="ポーズ">ポーズ</option>
+          <option value="表情">表情</option>
+          <option value="構図">構図</option>
+          <option value="色彩">色彩</option>
+          <option value="その他">その他</option>
+        </select>
+      </label>
+
+      <label>
+        タグ（カンマ区切り）
+        <input id="detailTagsInput" type="text" />
+      </label>
+
+      <label>
+        メモ
+        <textarea id="detailMemoInput" rows="5"></textarea>
+      </label>
+
+      <div class="check-row">
+        <label>
+          <input id="detailFavoriteInput" type="checkbox" />
+          お気に入り
+        </label>
+        <label>
+          <input id="detailNsfwInput" type="checkbox" />
+          NSFW
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button id="saveDetailButton" class="primary-button">変更を保存</button>
+      </div>
     </div>
   </dialog>
 

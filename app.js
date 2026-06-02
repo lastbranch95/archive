@@ -1,13 +1,15 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.1.0";
+const APP_VERSION = "0.2.0";
 const DEFAULT_PIN = "0908";
 
 let db;
 let archiveItems = [];
 let currentFilter = "active";
 let currentSearch = "";
+let selectedDetailItemId = null;
+let nsfwUnlocked = false;
 
 const pinScreen = document.getElementById("pinScreen");
 const appRoot = document.getElementById("appRoot");
@@ -23,25 +25,29 @@ window.addEventListener("load", async () => {
 
 function bindEvents() {
   document.getElementById("unlockButton").addEventListener("click", unlockApp);
+
   pinInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") unlockApp();
   });
 
   document.getElementById("lockButton").addEventListener("click", lockApp);
   document.getElementById("saveButton").addEventListener("click", saveArchiveItem);
+
   document.getElementById("searchInput").addEventListener("input", (event) => {
     currentSearch = event.target.value.trim().toLowerCase();
     renderArchiveList();
   });
-  document.getElementById("filterSelect").addEventListener("change", (event) => {
-    currentFilter = event.target.value;
-    renderArchiveList();
-  });
+
+  document.getElementById("filterSelect").addEventListener("change", handleFilterChange);
+
   document.getElementById("exportButton").addEventListener("click", exportJson);
   document.getElementById("importInput").addEventListener("change", importJson);
+
   document.getElementById("closeDetailButton").addEventListener("click", () => {
     document.getElementById("detailDialog").close();
   });
+
+  document.getElementById("saveDetailButton").addEventListener("click", saveDetailChanges);
 }
 
 function unlockApp() {
@@ -60,9 +66,39 @@ function unlockApp() {
 }
 
 function lockApp() {
+  nsfwUnlocked = false;
+  currentFilter = "active";
+  selectedDetailItemId = null;
+
+  const filterSelect = document.getElementById("filterSelect");
+  if (filterSelect) filterSelect.value = "active";
+
+  const detailDialog = document.getElementById("detailDialog");
+  if (detailDialog.open) detailDialog.close();
+
   appRoot.classList.add("hidden");
   pinScreen.classList.remove("hidden");
   pinInput.focus();
+}
+
+function handleFilterChange(event) {
+  const nextFilter = event.target.value;
+
+  if (nextFilter === "nsfw" && !nsfwUnlocked) {
+    const inputPin = prompt("NSFWを表示するにはPINを入力してください");
+
+    if (inputPin !== DEFAULT_PIN) {
+      alert("PINが違います");
+      event.target.value = currentFilter;
+      return;
+    }
+
+    nsfwUnlocked = true;
+  }
+
+  currentFilter = nextFilter;
+  renderStats();
+  renderArchiveList();
 }
 
 function openDatabase() {
@@ -71,6 +107,7 @@ function openDatabase() {
 
     request.onupgradeneeded = (event) => {
       const database = event.target.result;
+
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         database.createObjectStore(STORE_NAME, { keyPath: "id" });
       }
@@ -104,7 +141,13 @@ function putItem(item) {
 
 async function loadAndRender() {
   archiveItems = await getAllItems();
-  archiveItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  archiveItems.sort((a, b) => {
+    const dateA = new Date(a.createdAt || 0);
+    const dateB = new Date(b.createdAt || 0);
+    return dateB - dateA;
+  });
+
   renderStats();
   renderArchiveList();
 }
@@ -120,6 +163,7 @@ async function saveArchiveItem() {
 
   const image = await readFileAsDataUrl(file);
   const now = new Date().toISOString();
+
   const item = {
     id: crypto.randomUUID(),
     image,
@@ -139,6 +183,7 @@ async function saveArchiveItem() {
 
   await putItem(item);
   clearForm();
+
   formMessage.textContent = "保存しました";
   await loadAndRender();
 }
@@ -146,6 +191,7 @@ async function saveArchiveItem() {
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
@@ -153,7 +199,7 @@ function readFileAsDataUrl(file) {
 }
 
 function parseTags(value) {
-  return value
+  return String(value || "")
     .split(/[、,]/)
     .map((tag) => tag.trim())
     .filter(Boolean);
@@ -169,17 +215,30 @@ function clearForm() {
 }
 
 function renderStats() {
-  const activeItems = archiveItems.filter((item) => !item.isDeleted);
-  document.getElementById("totalCount").textContent = activeItems.length;
-  document.getElementById("favoriteCount").textContent = activeItems.filter((item) => item.isFavorite).length;
-  document.getElementById("trashCount").textContent = archiveItems.filter((item) => item.isDeleted).length;
+  const visibleActiveItems = archiveItems.filter((item) => {
+    if (item.isDeleted) return false;
+    if (!nsfwUnlocked && item.isNsfw) return false;
+    return true;
+  });
+
+  const visibleTrashItems = archiveItems.filter((item) => {
+    if (!item.isDeleted) return false;
+    if (!nsfwUnlocked && item.isNsfw) return false;
+    return true;
+  });
+
+  document.getElementById("totalCount").textContent = visibleActiveItems.length;
+  document.getElementById("favoriteCount").textContent = visibleActiveItems.filter((item) => item.isFavorite).length;
+  document.getElementById("trashCount").textContent = visibleTrashItems.length;
 }
 
 function renderArchiveList() {
   const list = document.getElementById("archiveList");
   list.innerHTML = "";
 
-  const filteredItems = archiveItems.filter(matchesFilter).filter(matchesSearch);
+  const filteredItems = archiveItems
+    .filter(matchesFilter)
+    .filter(matchesSearch);
 
   if (filteredItems.length === 0) {
     list.innerHTML = '<div class="empty-message">表示できる画像がありません</div>';
@@ -188,7 +247,7 @@ function renderArchiveList() {
 
   filteredItems.forEach((item) => {
     const card = document.createElement("article");
-    card.className = "archive-card";
+    card.className = `archive-card${item.isNsfw ? " is-nsfw" : ""}`;
 
     card.innerHTML = `
       <img src="${item.image}" alt="保存画像" />
@@ -196,7 +255,10 @@ function renderArchiveList() {
         <span class="pill">${escapeHtml(item.category || "未分類")}</span>
         <p class="card-memo">${escapeHtml(item.memo || "メモなし")}</p>
         <div class="tag-row">
-          ${(item.tags || []).slice(0, 3).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
+          ${(item.tags || [])
+            .slice(0, 2)
+            .map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`)
+            .join("")}
         </div>
         <div class="card-actions">
           <button data-action="detail" data-id="${item.id}">詳細</button>
@@ -215,10 +277,24 @@ function renderArchiveList() {
 }
 
 function matchesFilter(item) {
-  if (currentFilter === "active") return !item.isDeleted;
-  if (currentFilter === "favorite") return !item.isDeleted && item.isFavorite;
-  if (currentFilter === "nsfw") return !item.isDeleted && item.isNsfw;
-  if (currentFilter === "trash") return item.isDeleted;
+  if (currentFilter === "active") {
+    return !item.isDeleted && !item.isNsfw;
+  }
+
+  if (currentFilter === "favorite") {
+    return !item.isDeleted && item.isFavorite && !item.isNsfw;
+  }
+
+  if (currentFilter === "nsfw") {
+    return !item.isDeleted && item.isNsfw && nsfwUnlocked;
+  }
+
+  if (currentFilter === "trash") {
+    if (!item.isDeleted) return false;
+    if (!nsfwUnlocked && item.isNsfw) return false;
+    return true;
+  }
+
   return true;
 }
 
@@ -231,7 +307,9 @@ function matchesSearch(item) {
     item.author,
     item.work,
     ...(item.tags || [])
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 
   return searchTarget.includes(currentSearch);
 }
@@ -251,6 +329,7 @@ async function handleCardAction(event) {
   if (action === "favorite") {
     item.isFavorite = !item.isFavorite;
     item.updatedAt = new Date().toISOString();
+
     await putItem(item);
     await loadAndRender();
     return;
@@ -260,31 +339,51 @@ async function handleCardAction(event) {
     item.isDeleted = !item.isDeleted;
     item.deletedAt = item.isDeleted ? new Date().toISOString() : null;
     item.updatedAt = new Date().toISOString();
+
     await putItem(item);
     await loadAndRender();
   }
 }
 
 function openDetail(item) {
-  document.getElementById("detailImage").src = item.image;
-  document.getElementById("detailCategory").textContent = item.category || "未分類";
-  document.getElementById("detailMemo").textContent = item.memo || "メモなし";
-  document.getElementById("detailDate").textContent = `保存日: ${formatDate(item.createdAt)}`;
+  selectedDetailItemId = item.id;
 
-  const tags = document.getElementById("detailTags");
-  tags.innerHTML = "";
-  (item.tags || []).forEach((tag) => {
-    const span = document.createElement("span");
-    span.className = "tag";
-    span.textContent = tag;
-    tags.appendChild(span);
-  });
+  document.getElementById("detailImage").src = item.image;
+  document.getElementById("detailDate").textContent =
+    `保存日: ${formatDate(item.createdAt)} / 更新日: ${formatDate(item.updatedAt)}`;
+
+  document.getElementById("detailCategoryInput").value = item.category || "未分類";
+  document.getElementById("detailTagsInput").value = (item.tags || []).join(", ");
+  document.getElementById("detailMemoInput").value = item.memo || "";
+  document.getElementById("detailFavoriteInput").checked = Boolean(item.isFavorite);
+  document.getElementById("detailNsfwInput").checked = Boolean(item.isNsfw);
 
   document.getElementById("detailDialog").showModal();
 }
 
+async function saveDetailChanges() {
+  if (!selectedDetailItemId) return;
+
+  const item = archiveItems.find((archiveItem) => archiveItem.id === selectedDetailItemId);
+  if (!item) return;
+
+  item.category = document.getElementById("detailCategoryInput").value;
+  item.tags = parseTags(document.getElementById("detailTagsInput").value);
+  item.memo = document.getElementById("detailMemoInput").value.trim();
+  item.isFavorite = document.getElementById("detailFavoriteInput").checked;
+  item.isNsfw = document.getElementById("detailNsfwInput").checked;
+  item.updatedAt = new Date().toISOString();
+
+  await putItem(item);
+  await loadAndRender();
+
+  selectedDetailItemId = null;
+  document.getElementById("detailDialog").close();
+}
+
 function formatDate(value) {
   if (!value) return "";
+
   return new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "2-digit",
@@ -295,19 +394,34 @@ function formatDate(value) {
 }
 
 function exportJson() {
+  const includeNsfw = confirm(
+    "JSON Exportには画像本体が含まれます。\n\nNSFW画像も含めてExportしますか？\n\nOK: 全件Export\nキャンセル: NSFWを除外してExport"
+  );
+
+  const exportItems = includeNsfw
+    ? archiveItems
+    : archiveItems.filter((item) => !item.isNsfw);
+
   const payload = {
     appName: "Archive",
     version: APP_VERSION,
     exportDate: new Date().toISOString(),
-    data: archiveItems
+    includeNsfw,
+    data: exportItems
   };
 
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json"
+  });
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+  const exportType = includeNsfw ? "all" : "safe";
+
   link.href = url;
-  link.download = `archive-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `archive-backup-${exportType}-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
+
   URL.revokeObjectURL(url);
 }
 
@@ -322,14 +436,22 @@ async function importJson(event) {
 
     for (const item of data) {
       if (!item.id || !item.image) continue;
+
       await putItem({
         ...item,
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        isFavorite: Boolean(item.isFavorite),
+        isNsfw: Boolean(item.isNsfw),
+        isDeleted: Boolean(item.isDeleted),
+        deletedAt: item.deletedAt || null,
+        createdAt: item.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
     }
 
     event.target.value = "";
     await loadAndRender();
+
     alert("JSONをインポートしました");
   } catch (error) {
     alert("JSON Importに失敗しました");
@@ -337,7 +459,7 @@ async function importJson(event) {
 }
 
 function escapeHtml(value) {
-  return String(value)
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")

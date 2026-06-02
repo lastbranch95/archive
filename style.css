@@ -313,3 +313,91 @@ select {
   .form-grid { grid-template-columns: 1fr; }
   .archive-list { grid-template-columns: repeat(2, 1fr); }
 }
+/* v0.2: iPhone表示安定化 */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  touch-action: manipulation;
+}
+
+body {
+  -webkit-text-size-adjust: 100%;
+}
+
+.app-root,
+.pin-screen,
+.app-header,
+.layout {
+  max-width: 100%;
+}
+
+.app-header {
+  left: 0;
+  right: 0;
+  width: 100%;
+}
+
+.layout {
+  overflow-x: hidden;
+}
+
+.control-panel,
+.editor-panel,
+.backup-panel,
+.list-panel {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* iOSでinput/selectタップ時に勝手にズームされにくくする */
+input,
+textarea,
+select,
+button {
+  font-size: 16px;
+}
+
+/* 一覧カードをスマホで安定させる */
+.archive-card {
+  min-width: 0;
+}
+
+.archive-card img {
+  max-width: 100%;
+}
+
+.card-body {
+  min-width: 0;
+}
+
+.card-memo {
+  word-break: break-word;
+}
+
+/* ギャラリーではタグを出しすぎない */
+.archive-card .tag-row {
+  max-height: 2.2em;
+  overflow: hidden;
+}
+
+/* 詳細編集フォーム */
+.detail-body label {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.detail-body textarea {
+  min-height: 120px;
+}
+
+.detail-body .primary-button {
+  margin-top: 8px;
+}
+
+/* NSFWサムネイルを将来ぼかす用。今回は通常一覧から消すので保険 */
+.archive-card.is-nsfw img {
+  filter: blur(12px);
+}
