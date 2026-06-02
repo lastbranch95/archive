@@ -36,10 +36,10 @@
 
   <div id="appRoot" class="app-root hidden">
     <header class="app-header">
-      <div>
-        <p class="app-kicker">Document Archive</p>
-        <h1>Archive</h1>
-      </div>
+      <button id="openSettingsButton" class="title-button" type="button">
+        <span class="app-kicker">Document Archive</span>
+        <span class="app-title">Archive</span>
+      </button>
       <button id="lockButton" class="ghost-button">ロック</button>
     </header>
 
@@ -69,6 +69,7 @@
           <select id="filterSelect">
             <option value="active">通常</option>
             <option value="favorite">お気に入り</option>
+            <option value="unorganized">未整理</option>
             <option value="nsfw">NSFW</option>
             <option value="trash">ゴミ箱</option>
           </select>
@@ -111,6 +112,11 @@
               placeholder="黒髪, 逆光, 構図"
             />
           </label>
+
+          <div class="tag-helper">
+            <p class="helper-label">候補タグ</p>
+            <div id="tagSuggestionChips" class="tag-suggestion-chips"></div>
+          </div>
 
           <label>
             メモ
@@ -157,6 +163,110 @@
     </main>
   </div>
 
+  <div id="settingsRoot" class="settings-root hidden">
+    <header class="app-header">
+      <div>
+        <p class="app-kicker">Archive Settings</p>
+        <h1>設定</h1>
+      </div>
+      <button id="backFromSettingsButton" class="ghost-button">戻る</button>
+    </header>
+
+    <main class="layout">
+      <section class="settings-panel">
+        <h2>セキュリティ</h2>
+
+        <div class="settings-grid">
+          <label>
+            現在のPIN
+            <input
+              id="currentPinInput"
+              type="password"
+              inputmode="numeric"
+              maxlength="8"
+              autocomplete="off"
+              placeholder="現在のPIN"
+            />
+          </label>
+
+          <label>
+            新しいPIN
+            <input
+              id="newPinInput"
+              type="password"
+              inputmode="numeric"
+              maxlength="8"
+              autocomplete="off"
+              placeholder="新しいPIN"
+            />
+          </label>
+
+          <label>
+            新しいPIN確認
+            <input
+              id="confirmPinInput"
+              type="password"
+              inputmode="numeric"
+              maxlength="8"
+              autocomplete="off"
+              placeholder="もう一度入力"
+            />
+          </label>
+        </div>
+
+        <button id="changePinButton" class="primary-button">PINを変更</button>
+        <p id="settingsMessage" class="form-message"></p>
+      </section>
+
+      <section class="settings-panel">
+        <h2>自動ロック</h2>
+
+        <label>
+          操作がない場合のロック時間
+          <select id="autoLockSelect">
+            <option value="0">なし</option>
+            <option value="1">1分</option>
+            <option value="3">3分</option>
+            <option value="5">5分</option>
+            <option value="10">10分</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="settings-panel">
+        <h2>プライベート</h2>
+
+        <div class="check-row">
+          <label>
+            <input id="blurNsfwInput" type="checkbox" />
+            NSFWサムネイルをぼかす
+          </label>
+        </div>
+
+        <p class="muted small-note">
+          NSFWは通常一覧には表示されません。NSFW表示時はPIN再入力が必要です。
+        </p>
+      </section>
+
+      <section class="settings-panel">
+        <h2>データ管理</h2>
+
+        <div class="button-row">
+          <button id="emptyTrashButton" class="danger-button">ゴミ箱を空にする</button>
+        </div>
+
+        <p class="muted small-note">
+          ゴミ箱を空にすると、削除済み画像は完全削除されます。
+        </p>
+      </section>
+
+      <section class="settings-panel">
+        <h2>アプリ情報</h2>
+        <p class="muted">Archive version <span id="appVersionText">0.3.0</span></p>
+      </section>
+    </main>
+  </div>
+
   <dialog id="detailDialog" class="detail-dialog">
     <button id="closeDetailButton" class="close-button">×</button>
 
@@ -188,6 +298,11 @@
         <input id="detailTagsInput" type="text" list="tagSuggestions" />
       </label>
 
+      <div class="tag-helper">
+        <p class="helper-label">候補タグ</p>
+        <div id="detailTagSuggestionChips" class="tag-suggestion-chips"></div>
+      </div>
+
       <label>
         メモ
         <textarea id="detailMemoInput" rows="5"></textarea>
@@ -208,6 +323,11 @@
         <button id="saveDetailButton" class="primary-button">変更を保存</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="imagePreviewDialog" class="image-preview-dialog">
+    <button id="closePreviewButton" class="close-button">×</button>
+    <img id="previewImage" alt="画像プレビュー" />
   </dialog>
 
   <datalist id="tagSuggestions"></datalist>
