@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.2.2";
+const APP_VERSION = "0.2.0";
 const DEFAULT_PIN = "0908";
 
 let db;
@@ -44,7 +44,6 @@ function bindEvents() {
   document.getElementById("importInput").addEventListener("change", importJson);
 
   document.getElementById("closeDetailButton").addEventListener("click", () => {
-    selectedDetailItemId = null;
     document.getElementById("detailDialog").close();
   });
 
@@ -141,9 +140,7 @@ function putItem(item) {
 }
 
 async function loadAndRender() {
-  const items = await getAllItems();
-
-  archiveItems = items.map(normalizeItem);
+  archiveItems = await getAllItems();
 
   archiveItems.sort((a, b) => {
     const dateA = new Date(a.createdAt || 0);
@@ -151,7 +148,6 @@ async function loadAndRender() {
     return dateB - dateA;
   });
 
-  renderTagSuggestions();
   renderStats();
   renderArchiveList();
 }
@@ -202,38 +198,11 @@ function readFileAsDataUrl(file) {
   });
 }
 
-function normalizeItem(item) {
-  return {
-    ...item,
-    tags: normalizeTagList(item.tags),
-    isFavorite: Boolean(item.isFavorite),
-    isNsfw: Boolean(item.isNsfw),
-    isDeleted: Boolean(item.isDeleted),
-    deletedAt: item.deletedAt || null,
-    createdAt: item.createdAt || new Date().toISOString(),
-    updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
-  };
-}
-
-function normalizeTagList(value) {
-  const values = Array.isArray(value) ? value : [value];
-  const tags = [];
-
-  values.forEach((item) => {
-    String(item || "")
-      .split(/[、,，\n]/)
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-      .forEach((tag) => {
-        if (!tags.includes(tag)) tags.push(tag);
-      });
-  });
-
-  return tags;
-}
-
 function parseTags(value) {
-  return normalizeTagList(value);
+  return String(value || "")
+    .split(/[、,]/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 }
 
 function clearForm() {
@@ -279,28 +248,58 @@ function renderArchiveList() {
   filteredItems.forEach((item) => {
     const card = document.createElement("article");
     card.className = `archive-card${item.isNsfw ? " is-nsfw" : ""}`;
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("aria-label", "詳細を開く");
 
     card.innerHTML = `
-      <img src="${item.image}" alt="保存画像" />
+      <div class="card-image-wrap">
+        <img src="${item.image}" alt="保存画像" />
+        <button
+          class="card-favorite-button"
+          data-action="favorite"
+          data-id="${item.id}"
+          aria-label="お気に入り切替"
+        >
+          ${item.isFavorite ? "★" : "☆"}
+        </button>
+      </div>
+
       <div class="card-body">
         <span class="pill">${escapeHtml(item.category || "未分類")}</span>
         <p class="card-memo">${escapeHtml(item.memo || "メモなし")}</p>
+
         <div class="tag-row">
           ${(item.tags || [])
             .slice(0, 2)
             .map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`)
             .join("")}
         </div>
+
         <div class="card-actions">
-          <button data-action="detail" data-id="${item.id}">詳細</button>
-          <button data-action="favorite" data-id="${item.id}">${item.isFavorite ? "★" : "☆"}</button>
-          <button data-action="delete" data-id="${item.id}">${item.isDeleted ? "復元" : "削除"}</button>
+          <button data-action="delete" data-id="${item.id}">
+            ${item.isDeleted ? "復元" : "削除"}
+          </button>
         </div>
       </div>
     `;
 
+    card.addEventListener("click", () => {
+      openDetail(item);
+    });
+
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openDetail(item);
+      }
+    });
+
     card.querySelectorAll("button").forEach((button) => {
-      button.addEventListener("click", handleCardAction);
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        handleCardAction(event);
+      });
     });
 
     list.appendChild(card);
@@ -381,7 +380,7 @@ function openDetail(item) {
 
   document.getElementById("detailImage").src = item.image;
   document.getElementById("detailDate").textContent =
-    `保存日: ${formatDate(item.createdAt)}\n更新日: ${formatDate(item.updatedAt)}`;
+    `保存日: ${formatDate(item.createdAt)} / 更新日: ${formatDate(item.updatedAt)}`;
 
   document.getElementById("detailCategoryInput").value = item.category || "未分類";
   document.getElementById("detailTagsInput").value = (item.tags || []).join(", ");
@@ -410,29 +409,6 @@ async function saveDetailChanges() {
 
   selectedDetailItemId = null;
   document.getElementById("detailDialog").close();
-}
-
-function renderTagSuggestions() {
-  const datalist = document.getElementById("tagSuggestions");
-  if (!datalist) return;
-
-  const tags = new Set();
-
-  archiveItems.forEach((item) => {
-    (item.tags || []).forEach((tag) => {
-      if (tag) tags.add(tag);
-    });
-  });
-
-  datalist.innerHTML = "";
-
-  [...tags]
-    .sort((a, b) => a.localeCompare(b, "ja"))
-    .forEach((tag) => {
-      const option = document.createElement("option");
-      option.value = tag;
-      datalist.appendChild(option);
-    });
 }
 
 function formatDate(value) {
@@ -491,10 +467,16 @@ async function importJson(event) {
     for (const item of data) {
       if (!item.id || !item.image) continue;
 
-      await putItem(normalizeItem({
+      await putItem({
         ...item,
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        isFavorite: Boolean(item.isFavorite),
+        isNsfw: Boolean(item.isNsfw),
+        isDeleted: Boolean(item.isDeleted),
+        deletedAt: item.deletedAt || null,
+        createdAt: item.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      }));
+      });
     }
 
     event.target.value = "";

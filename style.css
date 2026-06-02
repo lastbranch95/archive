@@ -485,3 +485,67 @@ select {
     max-height: calc(52dvh - 32px);
   }
 }
+/* v0.2.3: カード全体タップ + 一覧軽量化 */
+.archive-card {
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.archive-card:active {
+  transform: scale(0.98);
+}
+
+.card-image-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-image-wrap img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.card-favorite-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid rgba(215, 221, 227, 0.9);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #2563eb;
+  box-shadow: 0 4px 14px rgba(31, 41, 51, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.card-memo {
+  -webkit-line-clamp: 1;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.card-actions button {
+  min-height: 36px;
+  padding: 6px 12px;
+}
+
+.archive-card .tag-row {
+  max-height: 2.4em;
+  overflow: hidden;
+}
+
+@media (hover: hover) {
+  .archive-card:hover {
+    box-shadow: 0 8px 24px rgba(31, 41, 51, 0.12);
+    transform: translateY(-2px);
+  }
+}
