@@ -70,7 +70,6 @@
             <option value="active">通常</option>
             <option value="favorite">お気に入り</option>
             <option value="unorganized">未整理</option>
-            <option value="nsfw">NSFW</option>
             <option value="trash">ゴミ箱</option>
           </select>
         </div>
@@ -80,10 +79,19 @@
         <h2>画像登録</h2>
 
         <div class="form-grid">
-          <label>
-            画像
-            <input id="imageInput" type="file" accept="image/*" />
-          </label>
+          <div class="file-field">
+            <span class="field-label">画像</span>
+            <div class="file-picker-row">
+              <label class="file-picker-button" for="imageInput">画像を選ぶ</label>
+              <span id="selectedFileName" class="file-name">未選択</span>
+            </div>
+            <input
+              id="imageInput"
+              class="visually-hidden-file"
+              type="file"
+              accept="image/*"
+            />
+          </div>
 
           <label>
             カテゴリ
@@ -135,7 +143,7 @@
           </label>
           <label>
             <input id="nsfwInput" type="checkbox" />
-            NSFW
+            Private
           </label>
         </div>
 
@@ -201,7 +209,9 @@
           </label>
         </div>
 
-        <button id="changePinButton" class="primary-button">PINを変更</button>
+        <button id="changePinButton" class="primary-button pin-change-button">
+          PINを変更
+        </button>
         <p id="settingsMessage" class="form-message"></p>
       </section>
 
@@ -223,20 +233,96 @@
       <section class="settings-panel">
         <h2>プライベート</h2>
 
-        <div class="check-row">
-          <label>
-            <input id="blurNsfwInput" type="checkbox" />
-            NSFWサムネイルをぼかす
-          </label>
+        <p id="privateModeStatus" class="private-status">Privateモード：OFF</p>
+
+        <div class="button-row">
+          <button id="openPrivateModeButton" class="secondary-button" type="button">
+            Privateモードを開く
+          </button>
+          <button id="closePrivateModeButton" class="ghost-button hidden" type="button">
+            Privateモードを閉じる
+          </button>
+        </div>
+
+        <div id="privateSettingsArea" class="private-settings-area hidden">
+          <div class="check-row">
+            <label>
+              <input id="blurNsfwInput" type="checkbox" />
+              Privateサムネイルをぼかす
+            </label>
+          </div>
+
+          <div class="settings-grid">
+            <label>
+              現在のPrivate PIN
+              <input
+                id="currentPrivatePinInput"
+                type="password"
+                inputmode="numeric"
+                maxlength="8"
+                autocomplete="off"
+                placeholder="現在のPrivate PIN"
+              />
+            </label>
+
+            <label>
+              新しいPrivate PIN
+              <input
+                id="newPrivatePinInput"
+                type="password"
+                inputmode="numeric"
+                maxlength="8"
+                autocomplete="off"
+                placeholder="新しいPrivate PIN"
+              />
+            </label>
+
+            <label>
+              新しいPrivate PIN確認
+              <input
+                id="confirmPrivatePinInput"
+                type="password"
+                inputmode="numeric"
+                maxlength="8"
+                autocomplete="off"
+                placeholder="もう一度入力"
+              />
+            </label>
+          </div>
+
+          <button
+            id="changePrivatePinButton"
+            class="primary-button pin-change-button"
+            type="button"
+          >
+            Private PINを変更
+          </button>
+          <p id="privateSettingsMessage" class="form-message"></p>
         </div>
 
         <p class="muted small-note">
-          NSFWは通常一覧には表示されません。NSFW表示時はPIN再入力が必要です。
+          Privateモードを開くと、通常画面のフィルターにPrivate項目が出ます。
+          Private PIN未設定時はアプリPINで開けます。
         </p>
       </section>
 
       <section class="settings-panel">
         <h2>データ管理</h2>
+
+        <div class="data-summary">
+          <div>
+            <span class="stat-label">保存件数</span>
+            <strong id="storageItemCount">0件</strong>
+          </div>
+          <div>
+            <span class="stat-label">推定画像容量</span>
+            <strong id="storageImageSize">0 B</strong>
+          </div>
+          <div>
+            <span class="stat-label">JSON推定サイズ</span>
+            <strong id="storageJsonSize">0 B</strong>
+          </div>
+        </div>
 
         <div class="button-row">
           <button id="exportButton" class="secondary-button">JSON Export</button>
@@ -256,7 +342,7 @@
 
       <section class="settings-panel">
         <h2>アプリ情報</h2>
-        <p class="muted">Archive version <span id="appVersionText">0.3.2</span></p>
+        <p class="muted">Archive version <span id="appVersionText">0.4.0</span></p>
       </section>
     </main>
   </div>
@@ -316,7 +402,7 @@
         </label>
         <label>
           <input id="detailNsfwInput" type="checkbox" />
-          NSFW
+          Private
         </label>
       </div>
 

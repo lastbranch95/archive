@@ -1,11 +1,12 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.3.2";
+const APP_VERSION = "0.4.0";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
   pin: "archivePin",
+  privatePin: "archivePrivatePin",
   autoLockMinutes: "archiveAutoLockMinutes",
   blurNsfw: "archiveBlurNsfw"
 };
@@ -47,6 +48,7 @@ function bindEvents() {
   document.getElementById("backFromSettingsButton").addEventListener("click", closeSettings);
 
   document.getElementById("saveButton").addEventListener("click", saveArchiveItem);
+  document.getElementById("imageInput").addEventListener("change", updateSelectedFileName);
 
   document.getElementById("searchInput").addEventListener("input", (event) => {
     currentSearch = event.target.value.trim().toLowerCase();
@@ -72,6 +74,10 @@ function bindEvents() {
   document.getElementById("blurNsfwInput").addEventListener("change", saveBlurNsfwSetting);
   document.getElementById("emptyTrashButton").addEventListener("click", emptyTrash);
 
+  document.getElementById("openPrivateModeButton").addEventListener("click", openPrivateMode);
+  document.getElementById("closePrivateModeButton").addEventListener("click", closePrivateMode);
+  document.getElementById("changePrivatePinButton").addEventListener("click", changePrivatePin);
+
   document.getElementById("tagSuggestionChips").addEventListener("click", (event) => {
     handleTagChipClick(event, "tagsInput");
   });
@@ -87,6 +93,10 @@ function bindEvents() {
 
 function getCurrentPin() {
   return localStorage.getItem(STORAGE_KEYS.pin) || DEFAULT_PIN;
+}
+
+function getPrivatePin() {
+  return localStorage.getItem(STORAGE_KEYS.privatePin) || getCurrentPin();
 }
 
 function unlockApp() {
@@ -111,9 +121,6 @@ function lockApp() {
   nsfwUnlocked = false;
   currentFilter = "active";
   selectedDetailItemId = null;
-
-  const filterSelect = document.getElementById("filterSelect");
-  if (filterSelect) filterSelect.value = "active";
 
   closeOpenDialogs();
   forceUnlockBodyScroll();
@@ -178,16 +185,10 @@ function forceUnlockBodyScroll() {
 function handleFilterChange(event) {
   const nextFilter = event.target.value;
 
-  if (nextFilter === "nsfw" && !nsfwUnlocked) {
-    const inputPin = prompt("NSFWを表示するにはPINを入力してください");
-
-    if (inputPin !== getCurrentPin()) {
-      alert("PINが違います");
-      event.target.value = currentFilter;
-      return;
-    }
-
-    nsfwUnlocked = true;
+  if (nextFilter === "private" && !nsfwUnlocked) {
+    event.target.value = currentFilter;
+    alert("Privateモードを設定画面から開いてください");
+    return;
   }
 
   currentFilter = nextFilter;
@@ -254,8 +255,10 @@ async function loadAndRender() {
   });
 
   renderTagSuggestions();
+  renderFilterOptions();
   renderStats();
   renderArchiveList();
+  updateDataSummary();
 }
 
 async function saveArchiveItem() {
@@ -290,7 +293,10 @@ async function saveArchiveItem() {
   await putItem(item);
   clearForm();
 
-  formMessage.textContent = "保存しました";
+  const tagText = item.tags.length > 0 ? item.tags.join(", ") : "タグなし";
+  formMessage.textContent =
+    `保存しました\nカテゴリ: ${item.category || "未分類"}\nタグ: ${tagText}`;
+
   await loadAndRender();
   resetAutoLockTimer();
 }
@@ -346,6 +352,7 @@ function clearForm() {
   document.getElementById("categoryInput").value = "未分類";
   document.getElementById("favoriteInput").checked = false;
   document.getElementById("nsfwInput").checked = false;
+  updateSelectedFileName();
 }
 
 function renderStats() {
@@ -450,7 +457,7 @@ function matchesFilter(item) {
     return !item.isDeleted && !item.isNsfw && isUnorganized(item);
   }
 
-  if (currentFilter === "nsfw") {
+  if (currentFilter === "private") {
     return !item.isDeleted && item.isNsfw && nsfwUnlocked;
   }
 
@@ -627,7 +634,7 @@ function renderTagSuggestions() {
     });
   });
 
-  const sortedTags = [...tags].sort((a, b) => a.localeCompare(b, "ja")).slice(0, 24);
+  const sortedTags = [...tags].sort((a, b) => a.localeCompare(b, "ja")).slice(0, 12);
 
   if (datalist) {
     datalist.innerHTML = "";
@@ -679,6 +686,149 @@ function addTagToInput(inputId, tag) {
 
   input.value = tags.join(", ");
   input.focus();
+}
+
+function openPrivateMode() {
+  const inputPin = prompt("Privateモードを開くにはPINを入力してください");
+
+  if (inputPin !== getPrivatePin()) {
+    alert("PINが違います");
+    return;
+  }
+
+  nsfwUnlocked = true;
+  currentFilter = "active";
+
+  renderFilterOptions();
+  renderStats();
+  renderArchiveList();
+  updatePrivateSettingsUi();
+  resetAutoLockTimer();
+}
+
+function closePrivateMode() {
+  nsfwUnlocked = false;
+  currentFilter = "active";
+
+  renderFilterOptions();
+  renderStats();
+  renderArchiveList();
+  updatePrivateSettingsUi();
+  resetAutoLockTimer();
+}
+
+function changePrivatePin() {
+  const currentPin = document.getElementById("currentPrivatePinInput").value;
+  const newPin = document.getElementById("newPrivatePinInput").value;
+  const confirmPin = document.getElementById("confirmPrivatePinInput").value;
+  const message = document.getElementById("privateSettingsMessage");
+
+  if (currentPin !== getPrivatePin()) {
+    message.textContent = "現在のPrivate PINが違います";
+    return;
+  }
+
+  if (!newPin || newPin.length < 4) {
+    message.textContent = "新しいPrivate PINは4桁以上にしてください";
+    return;
+  }
+
+  if (newPin !== confirmPin) {
+    message.textContent = "新しいPrivate PINが一致しません";
+    return;
+  }
+
+  localStorage.setItem(STORAGE_KEYS.privatePin, newPin);
+
+  document.getElementById("currentPrivatePinInput").value = "";
+  document.getElementById("newPrivatePinInput").value = "";
+  document.getElementById("confirmPrivatePinInput").value = "";
+
+  message.textContent = "Private PINを変更しました";
+  resetAutoLockTimer();
+}
+
+function updatePrivateSettingsUi() {
+  const status = document.getElementById("privateModeStatus");
+  const openButton = document.getElementById("openPrivateModeButton");
+  const closeButton = document.getElementById("closePrivateModeButton");
+  const privateSettingsArea = document.getElementById("privateSettingsArea");
+
+  if (!status || !openButton || !closeButton || !privateSettingsArea) return;
+
+  status.textContent = nsfwUnlocked ? "Privateモード：ON" : "Privateモード：OFF";
+  openButton.classList.toggle("hidden", nsfwUnlocked);
+  closeButton.classList.toggle("hidden", !nsfwUnlocked);
+  privateSettingsArea.classList.toggle("hidden", !nsfwUnlocked);
+}
+
+function renderFilterOptions() {
+  const filterSelect = document.getElementById("filterSelect");
+  if (!filterSelect) return;
+
+  const options = [
+    { value: "active", label: "通常" },
+    { value: "favorite", label: "お気に入り" },
+    { value: "unorganized", label: "未整理" }
+  ];
+
+  if (nsfwUnlocked) {
+    options.push({ value: "private", label: "Private" });
+  }
+
+  options.push({ value: "trash", label: "ゴミ箱" });
+
+  if (!options.some((option) => option.value === currentFilter)) {
+    currentFilter = "active";
+  }
+
+  filterSelect.innerHTML = "";
+
+  options.forEach((option) => {
+    const element = document.createElement("option");
+    element.value = option.value;
+    element.textContent = option.label;
+    filterSelect.appendChild(element);
+  });
+
+  filterSelect.value = currentFilter;
+}
+
+function updateSelectedFileName() {
+  const imageInput = document.getElementById("imageInput");
+  const selectedFileName = document.getElementById("selectedFileName");
+
+  if (!imageInput || !selectedFileName) return;
+
+  const file = imageInput.files && imageInput.files[0];
+  selectedFileName.textContent = file ? file.name : "未選択";
+}
+
+function updateDataSummary() {
+  const itemCount = document.getElementById("storageItemCount");
+  const imageSize = document.getElementById("storageImageSize");
+  const jsonSize = document.getElementById("storageJsonSize");
+
+  if (!itemCount || !imageSize || !jsonSize) return;
+
+  const activeItems = archiveItems.filter((item) => !item.isDeleted);
+  const totalImageBytes = activeItems.reduce((sum, item) => {
+    return sum + getByteSizeFromDataUrl(item.image);
+  }, 0);
+
+  const estimatedPayload = {
+    appName: "Archive",
+    version: APP_VERSION,
+    exportDate: new Date().toISOString(),
+    includeNsfw: true,
+    data: activeItems
+  };
+
+  const estimatedJsonBytes = new Blob([JSON.stringify(estimatedPayload)]).size;
+
+  itemCount.textContent = `${activeItems.length}件`;
+  imageSize.textContent = formatBytes(totalImageBytes);
+  jsonSize.textContent = formatBytes(estimatedJsonBytes);
 }
 
 async function updateCurrentImageInfo(dataUrl) {
@@ -807,6 +957,10 @@ function applySettingsToUi() {
   const blurNsfw = localStorage.getItem(STORAGE_KEYS.blurNsfw) === "true";
   document.getElementById("blurNsfwInput").checked = blurNsfw;
   document.body.classList.toggle("blur-nsfw", blurNsfw);
+
+  updatePrivateSettingsUi();
+  renderFilterOptions();
+  updateDataSummary();
 }
 
 function saveAutoLockSetting() {
@@ -871,7 +1025,7 @@ function formatDate(value) {
 
 function exportJson() {
   const includeNsfw = confirm(
-    "JSON Exportには画像本体が含まれます。\n\nNSFW画像も含めてExportしますか？\n\nOK: 全件Export\nキャンセル: NSFWを除外してExport"
+    "JSON Exportには画像本体が含まれます。\n\nPrivate画像も含めてExportしますか？\n\nOK: 全件Export\nキャンセル: Private画像を除外してExport"
   );
 
   const exportItems = includeNsfw
@@ -882,7 +1036,7 @@ function exportJson() {
     appName: "Archive",
     version: APP_VERSION,
     exportDate: new Date().toISOString(),
-    includeNsfw,
+    includePrivate: includeNsfw,
     data: exportItems
   };
 
