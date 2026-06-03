@@ -1141,3 +1141,117 @@ body.private-unlocked .app-header {
     text-align: center;
   }
 }
+
+
+/* ==================================================
+   v0.5.3: 漫画ビューア 横/縦切替・全画面・右綴じスワイプ
+================================================== */
+
+.manga-viewer-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.manga-mode-button {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(31, 41, 55, 0.86);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+
+.manga-mode-button.is-active {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.manga-mode-button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.manga-viewer-images.is-scroll-mode {
+  max-height: calc(100dvh - 118px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px;
+  display: grid;
+  place-items: stretch;
+  gap: 16px;
+  touch-action: pan-y;
+}
+
+.manga-viewer-images.is-scroll-mode .manga-viewer-page {
+  display: grid;
+  gap: 6px;
+}
+
+.manga-viewer-images.is-scroll-mode .manga-viewer-page img {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 12px;
+  background: #000;
+  object-fit: contain;
+}
+
+.manga-viewer-images.is-slide-mode {
+  touch-action: pan-y;
+}
+
+.manga-viewer-dialog.is-fullscreen {
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
+.manga-viewer-dialog.is-fullscreen .manga-viewer-header {
+  padding: 10px 12px;
+}
+
+.manga-viewer-dialog.is-fullscreen .manga-slide-page {
+  min-height: calc(100dvh - 150px);
+}
+
+.manga-viewer-dialog.is-fullscreen .manga-slide-page img {
+  max-height: calc(100dvh - 192px);
+  border-radius: 0;
+}
+
+@media (max-width: 680px) {
+  .manga-viewer-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .manga-viewer-header-actions {
+    justify-content: flex-start;
+  }
+
+  .manga-mode-button {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+
+  .manga-viewer-images.is-scroll-mode {
+    max-height: calc(100dvh - 150px);
+    padding: 10px;
+  }
+
+  .manga-viewer-dialog.is-fullscreen .manga-slide-page {
+    min-height: calc(100dvh - 158px);
+  }
+
+  .manga-viewer-dialog.is-fullscreen .manga-slide-page img {
+    max-height: calc(100dvh - 202px);
+  }
+}

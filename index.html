@@ -183,7 +183,7 @@
       <section class="list-panel manga-group-panel">
         <h2>漫画グループ</h2>
         <p class="muted small-note">
-          漫画グループ名を入れた画像だけをまとめて、縦スクロールビューアで読めます。
+          漫画グループ名を入れた画像だけをまとめて、横読み/縦読みを切り替えて読めます。
         </p>
         <div id="mangaGroupList" class="manga-group-list"></div>
       </section>
@@ -379,7 +379,7 @@
 
       <section class="settings-panel">
         <h2>アプリ情報</h2>
-        <p class="muted">Archive version <span id="appVersionText">0.5.2</span></p>
+        <p class="muted">Archive version <span id="appVersionText">0.5.3</span></p>
       </section>
     </main>
   </div>
@@ -482,7 +482,22 @@
         <h2 id="mangaViewerTitle">漫画グループ</h2>
         <p id="mangaViewerCount" class="muted small-note"></p>
       </div>
-      <button id="closeMangaViewerButton" class="ghost-button" type="button">閉じる</button>
+
+      <div class="manga-viewer-header-actions">
+        <button id="mangaSlideModeButton" class="manga-mode-button is-active" type="button">
+          <i class="bi bi-layout-sidebar-inset"></i>
+          横読み
+        </button>
+        <button id="mangaScrollModeButton" class="manga-mode-button" type="button">
+          <i class="bi bi-layout-three-columns"></i>
+          縦読み
+        </button>
+        <button id="toggleMangaFullscreenButton" class="manga-mode-button" type="button">
+          <i class="bi bi-fullscreen"></i>
+          全画面
+        </button>
+        <button id="closeMangaViewerButton" class="ghost-button" type="button">閉じる</button>
+      </div>
     </header>
 
     <div id="mangaViewerImages" class="manga-viewer-images"></div>
@@ -492,7 +507,7 @@
         <i class="bi bi-chevron-left"></i>
         前へ
       </button>
-      <p class="manga-swipe-note">左スワイプで次へ / 右スワイプで戻る</p>
+      <p id="mangaSwipeNote" class="manga-swipe-note">右スワイプで次へ / 左スワイプで戻る</p>
       <button id="nextMangaPageButton" class="manga-nav-button" type="button">
         次へ
         <i class="bi bi-chevron-right"></i>
