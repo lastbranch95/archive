@@ -379,7 +379,7 @@
 
       <section class="settings-panel">
         <h2>アプリ情報</h2>
-        <p class="muted">Archive version <span id="appVersionText">0.5.8</span></p>
+        <p class="muted">Archive version <span id="appVersionText">0.5.10</span></p>
       </section>
     </main>
   </div>
@@ -509,6 +509,10 @@
           <i class="bi bi-sliders"></i>
           管理
         </button>
+        <button id="mangaGroupDetailButton" class="manga-mode-button" type="button">
+          <i class="bi bi-info-circle"></i>
+          詳細
+        </button>
       </div>
     </header>
 
@@ -536,6 +540,42 @@
         <i class="bi bi-chevron-right"></i>
       </button>
     </nav>
+  </dialog>
+
+  <dialog id="mangaGroupDetailDialog" class="manga-group-detail-dialog">
+    <header class="manga-group-manager-header">
+      <div>
+        <p class="app-kicker">Manga Group Detail</p>
+        <h2>漫画詳細</h2>
+      </div>
+      <button id="closeMangaGroupDetailButton" class="close-button" type="button" aria-label="閉じる">×</button>
+    </header>
+
+    <div class="manga-group-detail-body">
+      <img id="mangaGroupDetailCover" class="manga-group-detail-cover hidden" alt="漫画グループ表紙" />
+
+      <section class="manga-detail-section">
+        <h3>グループ情報</h3>
+        <div id="mangaGroupDetailSummary"></div>
+      </section>
+
+      <section class="manga-detail-section">
+        <h3>タグ</h3>
+        <div id="mangaGroupDetailTags" class="tag-row"></div>
+      </section>
+
+      <section class="manga-detail-section">
+        <h3>グループメモ</h3>
+        <textarea
+          id="mangaGroupNoteInput"
+          rows="6"
+          placeholder="この漫画を保存した理由、刺さった点、後で使いたい参考ポイントなど"
+        ></textarea>
+        <button id="saveMangaGroupNoteButton" class="primary-button" type="button">
+          メモを保存
+        </button>
+      </section>
+    </div>
   </dialog>
 
   <dialog id="mangaGroupManagerDialog" class="manga-group-manager-dialog">

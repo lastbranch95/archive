@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.5.8";
+const APP_VERSION = "0.5.10";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
@@ -10,7 +10,8 @@ const STORAGE_KEYS = {
   autoLockMinutes: "archiveAutoLockMinutes",
   blurNsfw: "archiveBlurNsfw",
   mangaProgress: "archiveMangaProgress",
-  mangaReadingDirection: "archiveMangaReadingDirection"
+  mangaReadingDirection: "archiveMangaReadingDirection",
+  mangaGroupNotes: "archiveMangaGroupNotes"
 };
 
 let db;
@@ -93,9 +94,12 @@ function bindEvents() {
   document.getElementById("fullscreenCloseButton").addEventListener("click", closeMangaViewer);
   document.getElementById("mangaReadingDirectionButton").addEventListener("click", toggleMangaReadingDirection);
   document.getElementById("mangaGroupManageButton").addEventListener("click", openMangaGroupManager);
+  document.getElementById("mangaGroupDetailButton").addEventListener("click", openMangaGroupDetail);
   document.getElementById("mangaViewerImages").addEventListener("click", handleMangaViewerTap);
 
   document.getElementById("closeMangaGroupManagerButton").addEventListener("click", closeMangaGroupManager);
+  document.getElementById("closeMangaGroupDetailButton").addEventListener("click", closeMangaGroupDetail);
+  document.getElementById("saveMangaGroupNoteButton").addEventListener("click", saveCurrentMangaGroupNote);
   document.getElementById("saveMangaGroupRenameButton").addEventListener("click", renameCurrentMangaGroup);
   document.getElementById("applyMangaGroupTagsButton").addEventListener("click", addTagsToCurrentMangaGroup);
   document.getElementById("renumberMangaPagesButton").addEventListener("click", renumberCurrentMangaGroup);
@@ -184,7 +188,7 @@ function closeSettings() {
 }
 
 function closeOpenDialogs() {
-  ["imagePreviewDialog", "detailDialog", "mangaViewerDialog", "mangaGroupManagerDialog"].forEach((id) => {
+  ["imagePreviewDialog", "detailDialog", "mangaViewerDialog", "mangaGroupManagerDialog", "mangaGroupDetailDialog"].forEach((id) => {
     const dialog = document.getElementById(id);
     if (dialog && dialog.open) dialog.close();
   });
@@ -600,14 +604,26 @@ function openMangaViewer(groupTitle) {
     return;
   }
 
-  const savedIndex = getMangaProgress(groupTitle);
-  currentMangaPageIndex = Math.min(Math.max(savedIndex, 0), currentMangaPages.length - 1);
+  const savedIndex = Math.min(
+    Math.max(getMangaProgress(groupTitle), 0),
+    currentMangaPages.length - 1
+  );
+
+  if (savedIndex > 0) {
+    const savedItem = currentMangaPages[savedIndex];
+    const savedPageLabel = savedItem && savedItem.mangaPage ? `${savedItem.mangaPage}P` : `${savedIndex + 1}P`;
+    const shouldResume = confirm(`前回 ${savedIndex + 1} / ${currentMangaPages.length}（${savedPageLabel}）まで読んでいます。\n途中から読みますか？`);
+
+    currentMangaPageIndex = shouldResume ? savedIndex : 0;
+  } else {
+    currentMangaPageIndex = 0;
+  }
 
   const dialog = document.getElementById("mangaViewerDialog");
   const title = document.getElementById("mangaViewerTitle");
 
   title.textContent = groupTitle;
-  dialog.classList.remove("is-fullscreen", "is-ui-hidden");
+  dialog.classList.remove("is-fullscreen", "is-ui-hidden", "is-scroll-reading", "is-slide-reading");
   updateMangaViewerModeUi();
   renderMangaViewer();
 
@@ -675,11 +691,18 @@ function renderCurrentMangaPage() {
   const images = document.getElementById("mangaViewerImages");
   const prevButton = document.getElementById("prevMangaPageButton");
   const nextButton = document.getElementById("nextMangaPageButton");
+  const dialog = document.getElementById("mangaViewerDialog");
   const item = currentMangaPages[currentMangaPageIndex];
+
+  if (dialog) {
+    dialog.classList.add("is-slide-reading");
+    dialog.classList.remove("is-scroll-reading");
+  }
 
   if (!item) return;
 
   const pageLabel = item.mangaPage ? `${item.mangaPage}P` : `${currentMangaPageIndex + 1}P`;
+  const isLastPage = currentMangaPageIndex >= currentMangaPages.length - 1;
   count.textContent = `${currentMangaPageIndex + 1} / ${currentMangaPages.length}　${pageLabel}`;
 
   images.classList.remove("is-scroll-mode");
@@ -691,8 +714,18 @@ function renderCurrentMangaPage() {
     </section>
   `;
 
-  if (prevButton) prevButton.disabled = currentMangaPageIndex === 0;
-  if (nextButton) nextButton.disabled = currentMangaPageIndex >= currentMangaPages.length - 1;
+  if (prevButton) {
+    prevButton.disabled = currentMangaPageIndex === 0;
+    prevButton.innerHTML = '<i class="bi bi-chevron-left"></i><span>前へ</span>';
+  }
+
+  if (nextButton) {
+    nextButton.disabled = false;
+    nextButton.classList.toggle("is-close-page", isLastPage);
+    nextButton.innerHTML = isLastPage
+      ? '<span>閉じる</span><i class="bi bi-x-lg"></i>'
+      : '<span>次へ</span><i class="bi bi-chevron-right"></i>';
+  }
 }
 
 function renderMangaScrollPages() {
@@ -700,7 +733,15 @@ function renderMangaScrollPages() {
   const images = document.getElementById("mangaViewerImages");
   const prevButton = document.getElementById("prevMangaPageButton");
   const nextButton = document.getElementById("nextMangaPageButton");
+  const dialog = document.getElementById("mangaViewerDialog");
 
+  if (dialog) {
+    dialog.classList.add("is-scroll-reading");
+    dialog.classList.remove("is-slide-reading", "is-fullscreen", "is-ui-hidden");
+  }
+
+  mangaFullscreen = false;
+  mangaUiHidden = false;
   count.textContent = `${currentMangaPages.length}ページ / 縦読み`;
 
   images.classList.remove("is-slide-mode");
@@ -736,12 +777,21 @@ function renderMangaScrollPages() {
   }
 
   if (prevButton) prevButton.disabled = true;
-  if (nextButton) nextButton.disabled = true;
+  if (nextButton) {
+    nextButton.disabled = true;
+    nextButton.classList.remove("is-close-page");
+    nextButton.innerHTML = '<span>次へ</span><i class="bi bi-chevron-right"></i>';
+  }
 }
 
 function showNextMangaPage() {
   if (mangaViewerMode !== "slide") return;
-  if (currentMangaPageIndex >= currentMangaPages.length - 1) return;
+
+  if (currentMangaPageIndex >= currentMangaPages.length - 1) {
+    saveCurrentMangaProgress();
+    closeMangaViewer();
+    return;
+  }
 
   currentMangaPageIndex += 1;
   saveCurrentMangaProgress();
@@ -801,6 +851,11 @@ function bindMangaSwipeEvents() {
     const endY = event.changedTouches[0].screenY;
     handleMangaSwipe(endX, endY);
   }, { passive: true });
+
+  viewer.addEventListener("touchmove", (event) => {
+    if (mangaViewerMode !== "slide") return;
+    event.preventDefault();
+  }, { passive: false });
 }
 
 function handleMangaSwipe(endX, endY) {
@@ -839,7 +894,7 @@ function closeMangaViewer() {
     unlockBodyScroll();
   }
 
-  dialog.classList.remove("is-fullscreen", "is-ui-hidden");
+  dialog.classList.remove("is-fullscreen", "is-ui-hidden", "is-scroll-reading", "is-slide-reading");
 
   if (document.fullscreenElement && document.exitFullscreen) {
     document.exitFullscreen().catch(() => {});
@@ -848,6 +903,12 @@ function closeMangaViewer() {
   const managerDialog = document.getElementById("mangaGroupManagerDialog");
   if (managerDialog && managerDialog.open) {
     managerDialog.close();
+    unlockBodyScroll();
+  }
+
+  const detailDialog = document.getElementById("mangaGroupDetailDialog");
+  if (detailDialog && detailDialog.open) {
+    detailDialog.close();
     unlockBodyScroll();
   }
 
@@ -940,6 +1001,162 @@ function handleMangaViewerTap(event) {
     else showPrevMangaPage();
   }
 }
+
+
+function getMangaGroupNotesMap() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.mangaGroupNotes) || "{}");
+  } catch (error) {
+    return {};
+  }
+}
+
+function getMangaGroupNote(groupTitle) {
+  const notesMap = getMangaGroupNotesMap();
+  return String(notesMap[groupTitle] || "");
+}
+
+function saveMangaGroupNote(groupTitle, note) {
+  if (!groupTitle) return;
+
+  const notesMap = getMangaGroupNotesMap();
+  const normalizedNote = String(note || "").trim();
+
+  if (normalizedNote) {
+    notesMap[groupTitle] = normalizedNote;
+  } else {
+    delete notesMap[groupTitle];
+  }
+
+  localStorage.setItem(STORAGE_KEYS.mangaGroupNotes, JSON.stringify(notesMap));
+}
+
+function moveMangaGroupNote(oldTitle, newTitle) {
+  if (!oldTitle || !newTitle || oldTitle === newTitle) return;
+
+  const notesMap = getMangaGroupNotesMap();
+  if (Object.prototype.hasOwnProperty.call(notesMap, oldTitle)) {
+    notesMap[newTitle] = notesMap[oldTitle];
+    delete notesMap[oldTitle];
+    localStorage.setItem(STORAGE_KEYS.mangaGroupNotes, JSON.stringify(notesMap));
+  }
+}
+
+function getCurrentMangaGroupStats() {
+  const title = getCurrentMangaTitle();
+  const pages = sortMangaPages(currentMangaPages);
+  const createdDates = pages
+    .map((item) => new Date(item.createdAt || 0))
+    .filter((date) => Number.isFinite(date.getTime()));
+  const updatedDates = pages
+    .map((item) => new Date(item.updatedAt || item.createdAt || 0))
+    .filter((date) => Number.isFinite(date.getTime()));
+
+  const totalBytes = pages.reduce((sum, item) => sum + getByteSizeFromDataUrl(item.image), 0);
+  const tagSet = new Set();
+  pages.forEach((item) => normalizeTagList(item.tags).forEach((tag) => tagSet.add(tag)));
+
+  return {
+    title,
+    pages,
+    pageCount: pages.length,
+    totalBytes,
+    privateCount: pages.filter((item) => item.isNsfw).length,
+    favoriteCount: pages.filter((item) => item.isFavorite).length,
+    cover: pages.find((item) => item.isMangaCover) || pages[0] || null,
+    createdAt: createdDates.length ? new Date(Math.min(...createdDates.map((date) => date.getTime()))) : null,
+    updatedAt: updatedDates.length ? new Date(Math.max(...updatedDates.map((date) => date.getTime()))) : null,
+    tags: [...tagSet],
+    progressIndex: Math.min(Math.max(getMangaProgress(title), 0), Math.max(0, pages.length - 1)),
+    note: getMangaGroupNote(title)
+  };
+}
+
+function formatDateForDetail(date) {
+  if (!date || !Number.isFinite(date.getTime())) return "不明";
+
+  return date.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function openMangaGroupDetail() {
+  if (currentMangaPages.length === 0) return;
+
+  const dialog = document.getElementById("mangaGroupDetailDialog");
+  renderMangaGroupDetail();
+  dialog.showModal();
+  lockBodyScroll();
+  resetAutoLockTimer();
+}
+
+function closeMangaGroupDetail() {
+  const dialog = document.getElementById("mangaGroupDetailDialog");
+  if (dialog.open) {
+    dialog.close();
+    unlockBodyScroll();
+  }
+}
+
+function renderMangaGroupDetail() {
+  const stats = getCurrentMangaGroupStats();
+  const summary = document.getElementById("mangaGroupDetailSummary");
+  const tags = document.getElementById("mangaGroupDetailTags");
+  const note = document.getElementById("mangaGroupNoteInput");
+  const cover = document.getElementById("mangaGroupDetailCover");
+
+  if (cover) {
+    if (stats.cover && stats.cover.image) {
+      cover.src = stats.cover.image;
+      cover.alt = `${stats.title} 表紙`;
+      cover.classList.remove("hidden");
+    } else {
+      cover.classList.add("hidden");
+    }
+  }
+
+  if (summary) {
+    const progressText = stats.pageCount > 0
+      ? `${stats.progressIndex + 1} / ${stats.pageCount}`
+      : "なし";
+
+    summary.innerHTML = `
+      <dl class="manga-detail-summary-grid">
+        <div><dt>グループ名</dt><dd>${escapeHtml(stats.title || "名称なし")}</dd></div>
+        <div><dt>ページ数</dt><dd>${stats.pageCount}ページ</dd></div>
+        <div><dt>前回位置</dt><dd>${escapeHtml(progressText)}</dd></div>
+        <div><dt>推定容量</dt><dd>${escapeHtml(formatBytes(stats.totalBytes))}</dd></div>
+        <div><dt>Private</dt><dd>${stats.privateCount}枚</dd></div>
+        <div><dt>お気に入り</dt><dd>${stats.favoriteCount}枚</dd></div>
+        <div><dt>登録日</dt><dd>${escapeHtml(formatDateForDetail(stats.createdAt))}</dd></div>
+        <div><dt>最終更新</dt><dd>${escapeHtml(formatDateForDetail(stats.updatedAt))}</dd></div>
+      </dl>
+    `;
+  }
+
+  if (tags) {
+    tags.innerHTML = stats.tags.length > 0
+      ? stats.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")
+      : '<span class="muted small-note">タグなし</span>';
+  }
+
+  if (note) {
+    note.value = stats.note;
+  }
+}
+
+function saveCurrentMangaGroupNote() {
+  const noteInput = document.getElementById("mangaGroupNoteInput");
+  saveMangaGroupNote(getCurrentMangaTitle(), noteInput ? noteInput.value : "");
+  renderMangaGroupDetail();
+  alert("グループメモを保存しました");
+  resetAutoLockTimer();
+}
+
 
 function openMangaGroupManager() {
   if (currentMangaPages.length === 0) return;
@@ -1066,6 +1283,7 @@ async function renameCurrentMangaGroup() {
   });
 
   moveMangaProgress(oldTitle, newTitle);
+  moveMangaGroupNote(oldTitle, newTitle);
   await persistCurrentMangaPages();
   document.getElementById("mangaViewerTitle").textContent = newTitle;
   alert("グループ名を変更しました");
