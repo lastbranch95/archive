@@ -379,7 +379,7 @@
 
       <section class="settings-panel">
         <h2>アプリ情報</h2>
-        <p class="muted">Archive version <span id="appVersionText">0.5.3</span></p>
+        <p class="muted">Archive version <span id="appVersionText">0.5.6</span></p>
       </section>
     </main>
   </div>
@@ -477,30 +477,53 @@
 
   <dialog id="mangaViewerDialog" class="manga-viewer-dialog">
     <header class="manga-viewer-header">
-      <div>
-        <p class="app-kicker">Manga Viewer</p>
-        <h2 id="mangaViewerTitle">漫画グループ</h2>
-        <p id="mangaViewerCount" class="muted small-note"></p>
+      <div class="manga-viewer-title-row">
+        <div class="manga-viewer-title-block">
+          <p class="app-kicker">Manga Viewer</p>
+          <h2 id="mangaViewerTitle">漫画グループ</h2>
+          <p id="mangaViewerCount" class="muted small-note"></p>
+        </div>
+        <button id="closeMangaViewerButton" class="manga-icon-button" type="button" aria-label="閉じる">
+          <i class="bi bi-x-lg"></i>
+        </button>
       </div>
 
       <div class="manga-viewer-header-actions">
         <button id="mangaSlideModeButton" class="manga-mode-button is-active" type="button">
           <i class="bi bi-layout-sidebar-inset"></i>
-          横読み
+          横
         </button>
         <button id="mangaScrollModeButton" class="manga-mode-button" type="button">
           <i class="bi bi-layout-three-columns"></i>
-          縦読み
+          縦
         </button>
         <button id="toggleMangaFullscreenButton" class="manga-mode-button" type="button">
           <i class="bi bi-fullscreen"></i>
-          全画面
+          全
         </button>
-        <button id="closeMangaViewerButton" class="ghost-button" type="button">閉じる</button>
+        <button id="mangaReadingDirectionButton" class="manga-mode-button" type="button">
+          <i class="bi bi-arrow-left-right"></i>
+          右綴じ
+        </button>
+        <button id="mangaGroupManageButton" class="manga-mode-button" type="button">
+          <i class="bi bi-sliders"></i>
+          管理
+        </button>
       </div>
     </header>
 
     <div id="mangaViewerImages" class="manga-viewer-images"></div>
+
+    <div class="manga-fullscreen-toolbar" aria-label="全画面操作">
+      <button id="fullscreenExitButton" class="manga-floating-button" type="button">
+        <i class="bi bi-fullscreen-exit"></i>
+        解除
+      </button>
+      <button id="fullscreenCloseButton" class="manga-floating-button" type="button">
+        <i class="bi bi-x-lg"></i>
+        閉じる
+      </button>
+    </div>
 
     <nav class="manga-viewer-nav" aria-label="漫画ページ操作">
       <button id="prevMangaPageButton" class="manga-nav-button" type="button">
@@ -513,6 +536,55 @@
         <i class="bi bi-chevron-right"></i>
       </button>
     </nav>
+  </dialog>
+
+  <dialog id="mangaGroupManagerDialog" class="manga-group-manager-dialog">
+    <header class="manga-group-manager-header">
+      <div>
+        <p class="app-kicker">Manga Group</p>
+        <h2>グループ管理</h2>
+      </div>
+      <button id="closeMangaGroupManagerButton" class="manga-icon-button" type="button" aria-label="閉じる">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </header>
+
+    <div class="manga-group-manager-body">
+      <section class="manga-manager-section">
+        <label>
+          グループ名
+          <input id="mangaGroupRenameInput" type="text" placeholder="漫画グループ名" />
+        </label>
+        <button id="saveMangaGroupRenameButton" class="secondary-button" type="button">名前を変更</button>
+      </section>
+
+      <section class="manga-manager-section">
+        <label>
+          タグ一括追加
+          <input id="mangaGroupTagsInput" type="text" placeholder="X漫画, 作者名, 資料" />
+        </label>
+        <button id="applyMangaGroupTagsButton" class="secondary-button" type="button">タグを追加</button>
+      </section>
+
+      <section class="manga-manager-section manga-manager-inline">
+        <label class="manga-manager-checkbox">
+          <input id="mangaGroupPrivateInput" type="checkbox" />
+          グループ全体をPrivateにする
+        </label>
+        <button id="toggleMangaGroupPrivateButton" class="secondary-button" type="button">Private反映</button>
+      </section>
+
+      <section class="manga-manager-section manga-manager-actions">
+        <button id="renumberMangaPagesButton" class="secondary-button" type="button">ページ番号を振り直す</button>
+        <button id="deleteMangaGroupButton" class="danger-button" type="button">グループをゴミ箱へ</button>
+      </section>
+
+      <section class="manga-manager-section">
+        <h3>ページ順・表紙</h3>
+        <p class="muted small-note">↑↓で順番変更、表紙でグループカードの画像を選べます。</p>
+        <div id="mangaGroupPageList" class="manga-group-page-list"></div>
+      </section>
+    </div>
   </dialog>
 
   <dialog id="imagePreviewDialog" class="image-preview-dialog">
