@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.5.1";
+const APP_VERSION = "0.5.2";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
@@ -21,6 +21,10 @@ let autoLockTimerId = null;
 let savedScrollY = 0;
 let openDialogCount = 0;
 let currentDetailImageInfoText = "";
+let currentMangaPages = [];
+let currentMangaPageIndex = 0;
+let mangaTouchStartX = 0;
+let mangaTouchStartY = 0;
 
 const pinScreen = document.getElementById("pinScreen");
 const appRoot = document.getElementById("appRoot");
@@ -73,6 +77,9 @@ function bindEvents() {
   document.getElementById("detailImage").addEventListener("click", openImagePreview);
   document.getElementById("closePreviewButton").addEventListener("click", closeImagePreview);
   document.getElementById("closeMangaViewerButton").addEventListener("click", closeMangaViewer);
+  document.getElementById("prevMangaPageButton").addEventListener("click", showPrevMangaPage);
+  document.getElementById("nextMangaPageButton").addEventListener("click", showNextMangaPage);
+  bindMangaSwipeEvents();
 
   document.getElementById("changePinButton").addEventListener("click", changePin);
   document.getElementById("autoLockSelect").addEventListener("change", saveAutoLockSetting);
@@ -190,7 +197,7 @@ function forceUnlockBodyScroll() {
 function handleFilterChange(event) {
   const nextFilter = event.target.value;
 
-  if (nextFilter === "private" && !nsfwUnlocked) {
+  if (nextFilter.startsWith("private") && !nsfwUnlocked) {
     event.target.value = currentFilter;
     alert("Privateモードを設定画面から開いてください");
     return;
@@ -300,41 +307,63 @@ function wait(ms) {
 
 async function saveArchiveItem() {
   const imageInput = document.getElementById("imageInput");
-  const file = imageInput.files[0];
+  const files = Array.from(imageInput.files || []);
 
-  if (!file) {
+  if (files.length === 0) {
     formMessage.textContent = "画像を選択してください";
     return;
   }
 
-  const image = await readFileAsDataUrl(file);
-  const now = new Date().toISOString();
+  const memo = document.getElementById("memoInput").value.trim();
+  const tags = parseTags(document.getElementById("tagsInput").value);
+  const category = document.getElementById("categoryInput").value;
+  const mangaTitle = normalizeMangaTitle(document.getElementById("mangaTitleInput").value);
+  const startPage = parsePageNumber(document.getElementById("mangaPageInput").value);
+  const isFavorite = document.getElementById("favoriteInput").checked;
+  const isNsfw = document.getElementById("nsfwInput").checked;
 
-  const item = {
-    id: crypto.randomUUID(),
-    image,
-    memo: document.getElementById("memoInput").value.trim(),
-    tags: parseTags(document.getElementById("tagsInput").value),
-    category: document.getElementById("categoryInput").value,
-    mangaTitle: normalizeMangaTitle(document.getElementById("mangaTitleInput").value),
-    mangaPage: parsePageNumber(document.getElementById("mangaPageInput").value),
-    isFavorite: document.getElementById("favoriteInput").checked,
-    isNsfw: document.getElementById("nsfwInput").checked,
-    author: "",
-    work: "",
-    rating: null,
-    createdAt: now,
-    updatedAt: now,
-    isDeleted: false,
-    deletedAt: null
-  };
+  for (let index = 0; index < files.length; index += 1) {
+    const image = await readFileAsDataUrl(files[index]);
+    const now = new Date().toISOString();
+    const mangaPage = startPage ? startPage + index : null;
 
-  await putItem(item);
+    const item = {
+      id: crypto.randomUUID(),
+      image,
+      memo,
+      tags,
+      category,
+      mangaTitle,
+      mangaPage,
+      isFavorite,
+      isNsfw,
+      author: "",
+      work: "",
+      rating: null,
+      createdAt: now,
+      updatedAt: now,
+      isDeleted: false,
+      deletedAt: null
+    };
+
+    await putItem(item);
+  }
+
   clearForm();
 
-  const tagText = item.tags.length > 0 ? item.tags.join(", ") : "タグなし";
+  const tagText = tags.length > 0 ? tags.join(", ") : "タグなし";
+  const pageText = mangaTitle && startPage
+    ? `
+漫画: ${mangaTitle} / ${startPage}P〜${startPage + files.length - 1}P`
+    : mangaTitle
+      ? `
+漫画: ${mangaTitle}`
+      : "";
+
   formMessage.textContent =
-    `保存しました\nカテゴリ: ${item.category || "未分類"}\nタグ: ${tagText}`;
+    `${files.length}枚保存しました
+カテゴリ: ${category || "未分類"}
+タグ: ${tagText}${pageText}`;
 
   await loadAndRender();
   resetAutoLockTimer();
@@ -534,41 +563,95 @@ function handleMangaGroupClick(event) {
 }
 
 function openMangaViewer(groupTitle) {
-  const groupItems = sortMangaPages(
+  currentMangaPages = sortMangaPages(
     getVisibleItemsForGrouping().filter((item) => item.mangaTitle === groupTitle)
   );
+  currentMangaPageIndex = 0;
 
-  if (groupItems.length === 0) {
+  if (currentMangaPages.length === 0) {
     alert("この漫画グループには表示できる画像がありません");
     return;
   }
 
   const dialog = document.getElementById("mangaViewerDialog");
   const title = document.getElementById("mangaViewerTitle");
-  const count = document.getElementById("mangaViewerCount");
-  const images = document.getElementById("mangaViewerImages");
 
   title.textContent = groupTitle;
-  count.textContent = `${groupItems.length}ページ`;
-  images.innerHTML = "";
-
-  groupItems.forEach((item, index) => {
-    const page = document.createElement("section");
-    page.className = "manga-viewer-page";
-
-    page.innerHTML = `
-      <div class="manga-viewer-page-label">
-        ${item.mangaPage ? `${escapeHtml(item.mangaPage)}P` : `${index + 1}P`}
-      </div>
-      <img src="${item.image}" alt="${escapeHtml(groupTitle)} ${index + 1}ページ" />
-    `;
-
-    images.appendChild(page);
-  });
+  renderCurrentMangaPage();
 
   dialog.showModal();
   lockBodyScroll();
   resetAutoLockTimer();
+}
+
+function renderCurrentMangaPage() {
+  const count = document.getElementById("mangaViewerCount");
+  const images = document.getElementById("mangaViewerImages");
+  const prevButton = document.getElementById("prevMangaPageButton");
+  const nextButton = document.getElementById("nextMangaPageButton");
+  const item = currentMangaPages[currentMangaPageIndex];
+
+  if (!item) return;
+
+  const pageLabel = item.mangaPage ? `${item.mangaPage}P` : `${currentMangaPageIndex + 1}P`;
+  count.textContent = `${currentMangaPageIndex + 1} / ${currentMangaPages.length}　${pageLabel}`;
+
+  images.innerHTML = `
+    <section class="manga-slide-page">
+      <div class="manga-viewer-page-label">${escapeHtml(pageLabel)}</div>
+      <img src="${item.image}" alt="${escapeHtml(item.mangaTitle || "漫画")} ${currentMangaPageIndex + 1}ページ" />
+    </section>
+  `;
+
+  if (prevButton) prevButton.disabled = currentMangaPageIndex === 0;
+  if (nextButton) nextButton.disabled = currentMangaPageIndex >= currentMangaPages.length - 1;
+}
+
+function showNextMangaPage() {
+  if (currentMangaPageIndex >= currentMangaPages.length - 1) return;
+
+  currentMangaPageIndex += 1;
+  renderCurrentMangaPage();
+  resetAutoLockTimer();
+}
+
+function showPrevMangaPage() {
+  if (currentMangaPageIndex <= 0) return;
+
+  currentMangaPageIndex -= 1;
+  renderCurrentMangaPage();
+  resetAutoLockTimer();
+}
+
+function bindMangaSwipeEvents() {
+  const viewer = document.getElementById("mangaViewerImages");
+  if (!viewer) return;
+
+  viewer.addEventListener("touchstart", (event) => {
+    mangaTouchStartX = event.changedTouches[0].screenX;
+    mangaTouchStartY = event.changedTouches[0].screenY;
+  }, { passive: true });
+
+  viewer.addEventListener("touchend", (event) => {
+    const endX = event.changedTouches[0].screenX;
+    const endY = event.changedTouches[0].screenY;
+    handleMangaSwipe(endX, endY);
+  }, { passive: true });
+}
+
+function handleMangaSwipe(endX, endY) {
+  const diffX = mangaTouchStartX - endX;
+  const diffY = mangaTouchStartY - endY;
+  const threshold = 50;
+
+  if (Math.abs(diffX) < threshold) return;
+  if (Math.abs(diffY) > Math.abs(diffX) * 0.9) return;
+
+  if (diffX > 0) {
+    showNextMangaPage();
+  } else {
+    showPrevMangaPage();
+  }
 }
 
 function closeMangaViewer() {
@@ -578,6 +661,9 @@ function closeMangaViewer() {
     dialog.close();
     unlockBodyScroll();
   }
+
+  currentMangaPages = [];
+  currentMangaPageIndex = 0;
 }
 
 function downloadSelectedDetailImage() {
@@ -707,6 +793,22 @@ function matchesFilter(item) {
 
   if (currentFilter === "private") {
     return !item.isDeleted && item.isNsfw && nsfwUnlocked;
+  }
+
+  if (currentFilter === "privateManga") {
+    return !item.isDeleted && item.isNsfw && nsfwUnlocked && Boolean(item.mangaTitle);
+  }
+
+  if (currentFilter === "privateSingle") {
+    return !item.isDeleted && item.isNsfw && nsfwUnlocked && !item.mangaTitle;
+  }
+
+  if (currentFilter === "privateFavorite") {
+    return !item.isDeleted && item.isNsfw && nsfwUnlocked && item.isFavorite;
+  }
+
+  if (currentFilter === "privateUnorganized") {
+    return !item.isDeleted && item.isNsfw && nsfwUnlocked && isUnorganized(item);
   }
 
   if (currentFilter === "trash") {
@@ -1033,6 +1135,10 @@ function renderFilterOptions() {
 
   if (nsfwUnlocked) {
     options.push({ value: "private", label: "Private" });
+    options.push({ value: "privateManga", label: "Private漫画" });
+    options.push({ value: "privateSingle", label: "Private単体" });
+    options.push({ value: "privateFavorite", label: "Privateお気に入り" });
+    options.push({ value: "privateUnorganized", label: "Private未整理" });
   }
 
   options.push({ value: "trash", label: "ゴミ箱" });
