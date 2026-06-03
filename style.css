@@ -975,3 +975,71 @@ body.blur-nsfw .archive-card.is-nsfw img {
   }
 }
 
+
+/* ==================================================
+   v0.5.1: Private表示・更新ボタン・複数登録補助
+================================================== */
+
+.icon-text-button {
+  gap: 8px;
+  white-space: nowrap;
+}
+
+#refreshButton.refreshing i {
+  animation: refreshSpin 0.55s linear infinite;
+}
+
+#refreshButton:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+@keyframes refreshSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.private-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #263545;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.private-header-badge i {
+  font-size: 0.85rem;
+}
+
+body.private-unlocked .app-header {
+  border-bottom-color: rgba(138, 63, 63, 0.38);
+  box-shadow: 0 8px 22px rgba(138, 63, 63, 0.08);
+}
+
+@media (max-width: 680px) {
+  .app-header {
+    gap: 8px;
+  }
+
+  .icon-text-button {
+    padding: 10px 12px;
+  }
+
+  .private-header-badge {
+    margin-left: 4px;
+    padding: 3px 6px;
+    font-size: 0.66rem;
+  }
+}

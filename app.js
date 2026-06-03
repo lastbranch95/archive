@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.5.0";
+const APP_VERSION = "0.5.1";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
@@ -49,6 +49,7 @@ function bindEvents() {
 
   document.getElementById("saveButton").addEventListener("click", saveArchiveItem);
   document.getElementById("imageInput").addEventListener("change", updateSelectedFileName);
+  document.getElementById("refreshButton").addEventListener("click", refreshArchiveApp);
 
   document.getElementById("searchInput").addEventListener("input", (event) => {
     currentSearch = event.target.value.trim().toLowerCase();
@@ -259,11 +260,42 @@ async function loadAndRender() {
   });
 
   renderTagSuggestions();
+  refreshArchiveView();
+}
+
+function refreshArchiveView() {
   renderFilterOptions();
   renderStats();
   renderArchiveList();
   renderMangaGroups();
   updateDataSummary();
+  updatePrivateSettingsUi();
+  updatePrivateHeaderIndicator();
+}
+
+async function refreshArchiveApp() {
+  const refreshButton = document.getElementById("refreshButton");
+
+  if (refreshButton) {
+    refreshButton.classList.add("refreshing");
+    refreshButton.disabled = true;
+  }
+
+  try {
+    await loadAndRender();
+    await wait(280);
+  } finally {
+    if (refreshButton) {
+      refreshButton.classList.remove("refreshing");
+      refreshButton.disabled = false;
+    }
+  }
+
+  resetAutoLockTimer();
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function saveArchiveItem() {
@@ -668,7 +700,9 @@ function matchesFilter(item) {
   }
 
   if (currentFilter === "manga") {
-    return !item.isDeleted && !item.isNsfw && Boolean(item.mangaTitle);
+    if (item.isDeleted || !item.mangaTitle) return false;
+    if (!nsfwUnlocked && item.isNsfw) return false;
+    return true;
   }
 
   if (currentFilter === "private") {
@@ -919,10 +953,7 @@ function openPrivateMode() {
   nsfwUnlocked = true;
   currentFilter = "active";
 
-  renderFilterOptions();
-  renderStats();
-  renderArchiveList();
-  updatePrivateSettingsUi();
+  refreshArchiveView();
   resetAutoLockTimer();
 }
 
@@ -930,10 +961,7 @@ function closePrivateMode() {
   nsfwUnlocked = false;
   currentFilter = "active";
 
-  renderFilterOptions();
-  renderStats();
-  renderArchiveList();
-  updatePrivateSettingsUi();
+  refreshArchiveView();
   resetAutoLockTimer();
 }
 
@@ -974,12 +1002,22 @@ function updatePrivateSettingsUi() {
   const closeButton = document.getElementById("closePrivateModeButton");
   const privateSettingsArea = document.getElementById("privateSettingsArea");
 
+  document.body.classList.toggle("private-unlocked", nsfwUnlocked);
+  updatePrivateHeaderIndicator();
+
   if (!status || !openButton || !closeButton || !privateSettingsArea) return;
 
   status.textContent = nsfwUnlocked ? "Privateモード：ON" : "Privateモード：OFF";
   openButton.classList.toggle("hidden", nsfwUnlocked);
   closeButton.classList.toggle("hidden", !nsfwUnlocked);
   privateSettingsArea.classList.toggle("hidden", !nsfwUnlocked);
+}
+
+function updatePrivateHeaderIndicator() {
+  const badge = document.getElementById("privateHeaderBadge");
+  if (!badge) return;
+
+  badge.classList.toggle("hidden", !nsfwUnlocked);
 }
 
 function renderFilterOptions() {
@@ -1021,8 +1059,19 @@ function updateSelectedFileName() {
 
   if (!imageInput || !selectedFileName) return;
 
-  const file = imageInput.files && imageInput.files[0];
-  selectedFileName.textContent = file ? file.name : "未選択";
+  const files = Array.from(imageInput.files || []);
+
+  if (files.length === 0) {
+    selectedFileName.textContent = "未選択";
+    return;
+  }
+
+  if (files.length === 1) {
+    selectedFileName.textContent = files[0].name;
+    return;
+  }
+
+  selectedFileName.textContent = `${files.length}枚選択`;
 }
 
 function updateDataSummary() {
@@ -1179,9 +1228,7 @@ function applySettingsToUi() {
   document.getElementById("blurNsfwInput").checked = blurNsfw;
   document.body.classList.toggle("blur-nsfw", blurNsfw);
 
-  updatePrivateSettingsUi();
-  renderFilterOptions();
-  updateDataSummary();
+  refreshArchiveView();
 }
 
 function saveAutoLockSetting() {
