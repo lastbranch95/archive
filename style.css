@@ -1984,107 +1984,131 @@ body.private-unlocked .app-header {
 
 
 /* ==================================================
-   v0.5.7: 縦読みを漫画優先レイアウトに調整
-   - 縦読み時はヘッダーも本文と一緒に流す
-   - 最終ページ下に余白を作る
-   - 閉じるボタンを右端寄せ
+   v0.5.8: 漫画ビューアUI位置調整
+   - ×を常に右上角へ
+   - 縦読み最後に閉じるボタン追加
+   - 横読み下部ナビの黒線/主張を弱める
 ================================================== */
 
-.manga-viewer-dialog.is-scroll-reading {
-  display: block;
-  height: min(100dvh, 980px);
-  max-height: 100dvh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  background: #111;
-}
-
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-header {
-  position: static;
-  top: auto;
-  padding-right: 54px;
-}
-
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-title-row {
+/* タイトルより×を優先。右上角に固定する */
+.manga-viewer-header {
   position: relative;
+  padding-right: 58px;
 }
 
-.manga-viewer-dialog.is-scroll-reading #closeMangaViewerButton {
-  position: absolute;
-  top: 0;
-  right: -42px;
-  z-index: 10;
+.manga-viewer-title-wrap,
+.manga-viewer-header-main {
+  min-width: 0;
 }
 
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-images {
+#mangaViewerTitle {
+  max-width: calc(100vw - 140px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#closeMangaViewerButton,
+.manga-viewer-close-button {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  margin: 0 !important;
+  z-index: 80 !important;
+}
+
+/* 縦読みのページ間余白をかなり詰める */
+.manga-viewer-images.is-scroll-mode {
+  gap: 5px !important;
+  padding-top: 8px !important;
+  padding-bottom: 120px !important;
+}
+
+.manga-viewer-images.is-scroll-mode .manga-viewer-page {
+  gap: 4px !important;
+  margin: 0 !important;
+}
+
+.manga-viewer-images.is-scroll-mode .manga-viewer-page + .manga-viewer-page {
+  margin-top: 5px !important;
+}
+
+/* 縦読みの最後に出す閉じるボタン */
+.manga-scroll-bottom-actions {
   display: grid;
-  place-items: stretch;
-  align-items: start;
-  max-height: none;
-  min-height: 0;
-  height: auto;
-  overflow: visible;
-  padding: 16px 12px 144px;
-  background: #111;
+  place-items: center;
+  padding: 28px 12px 120px;
 }
 
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-images.is-scroll-mode {
-  overflow: visible;
-  padding-bottom: 144px;
+.manga-scroll-close-button {
+  min-width: 180px;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.96);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-page {
-  margin: 0 auto 44px;
-  width: 100%;
-  max-width: 760px;
+/* 横読みの下部ナビ：黒い横線と重い帯を弱める */
+.manga-viewer-nav {
+  border-top: 0 !important;
+  background: linear-gradient(
+    to top,
+    rgba(5, 7, 12, 0.84),
+    rgba(5, 7, 12, 0.32),
+    transparent
+  ) !important;
+  box-shadow: none !important;
+  padding-top: 8px !important;
 }
 
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-page:last-child {
-  margin-bottom: 120px;
+/* 画像との境界に出ていた謎の線を消す */
+.manga-viewer-images.is-slide-mode,
+.manga-slide-page,
+.manga-slide-page img {
+  border-bottom: 0 !important;
+  box-shadow: none !important;
 }
 
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-page img {
-  width: 100%;
-  height: auto;
-  max-height: none;
-  object-fit: contain;
-  display: block;
-  border-radius: 12px;
+/* 横読みのボタンを少し控えめにする */
+.manga-viewer-images.is-slide-mode + .manga-viewer-nav .manga-nav-button,
+.manga-viewer-nav .manga-nav-button {
+  min-height: 40px;
+  background: rgba(31, 41, 55, 0.78);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
-.manga-viewer-dialog.is-scroll-reading .manga-viewer-nav {
-  display: none;
+.manga-swipe-note {
+  background: rgba(31, 41, 55, 0.72);
+  border-radius: 999px;
+  padding: 5px 12px;
 }
 
-.manga-viewer-dialog.is-scroll-reading .manga-fullscreen-toolbar {
-  display: none;
+/* 全画面時は引き続き余計なUIを消す */
+.manga-viewer-dialog.is-fullscreen .manga-viewer-nav {
+  display: none !important;
 }
 
 @media (max-width: 680px) {
-  .manga-viewer-dialog.is-scroll-reading {
-    width: 100%;
-    height: 100dvh;
-    border-radius: 0;
+  .manga-viewer-header {
+    padding-right: 54px;
   }
 
-  .manga-viewer-dialog.is-scroll-reading .manga-viewer-header {
-    padding: calc(12px + env(safe-area-inset-top)) 58px 14px 14px;
+  #mangaViewerTitle {
+    max-width: calc(100vw - 118px);
   }
 
-  .manga-viewer-dialog.is-scroll-reading #closeMangaViewerButton {
-    top: calc(10px + env(safe-area-inset-top));
-    right: 10px;
+  #closeMangaViewerButton,
+  .manga-viewer-close-button {
+    top: 8px !important;
+    right: 8px !important;
   }
 
-  .manga-viewer-dialog.is-scroll-reading .manga-viewer-images {
-    padding: 16px 10px calc(160px + env(safe-area-inset-bottom));
-  }
-
-  .manga-viewer-dialog.is-scroll-reading .manga-viewer-page {
-    margin-bottom: 44px;
-  }
-
-  .manga-viewer-dialog.is-scroll-reading .manga-viewer-page:last-child {
-    margin-bottom: 132px;
+  .manga-scroll-bottom-actions {
+    padding-bottom: 136px;
   }
 }
