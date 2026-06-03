@@ -134,6 +134,26 @@
               placeholder="なぜ保存したか、何が刺さったか"
             ></textarea>
           </label>
+
+          <label>
+            漫画グループ名
+            <input
+              id="mangaTitleInput"
+              type="text"
+              placeholder="例：X漫画まとめ、作者名_作品名"
+            />
+          </label>
+
+          <label>
+            ページ番号
+            <input
+              id="mangaPageInput"
+              type="number"
+              min="1"
+              inputmode="numeric"
+              placeholder="1"
+            />
+          </label>
         </div>
 
         <div class="check-row">
@@ -149,6 +169,14 @@
 
         <button id="saveButton" class="primary-button">保存</button>
         <p id="formMessage" class="form-message"></p>
+      </section>
+
+      <section class="list-panel manga-group-panel">
+        <h2>漫画グループ</h2>
+        <p class="muted small-note">
+          漫画グループ名を入れた画像だけをまとめて、縦スクロールビューアで読めます。
+        </p>
+        <div id="mangaGroupList" class="manga-group-list"></div>
       </section>
 
       <section class="list-panel">
@@ -342,7 +370,7 @@
 
       <section class="settings-panel">
         <h2>アプリ情報</h2>
-        <p class="muted">Archive version <span id="appVersionText">0.4.0</span></p>
+        <p class="muted">Archive version <span id="appVersionText">0.5.0</span></p>
       </section>
     </main>
   </div>
@@ -395,6 +423,24 @@
         <textarea id="detailMemoInput" rows="5"></textarea>
       </label>
 
+      <div class="detail-manga-grid">
+        <label>
+          漫画グループ名
+          <input id="detailMangaTitleInput" type="text" placeholder="同じ名前でグループ化" />
+        </label>
+
+        <label>
+          ページ番号
+          <input
+            id="detailMangaPageInput"
+            type="number"
+            min="1"
+            inputmode="numeric"
+            placeholder="1"
+          />
+        </label>
+      </div>
+
       <div class="check-row">
         <label>
           <input id="detailFavoriteInput" type="checkbox" />
@@ -408,6 +454,9 @@
 
       <div class="button-row">
         <button id="saveDetailButton" class="primary-button">変更を保存</button>
+        <button id="detailDownloadButton" class="secondary-button" type="button">
+          画像を保存
+        </button>
       </div>
 
       <section class="danger-zone">
@@ -415,6 +464,19 @@
         <button id="detailDeleteButton" class="danger-button">削除</button>
       </section>
     </div>
+  </dialog>
+
+  <dialog id="mangaViewerDialog" class="manga-viewer-dialog">
+    <header class="manga-viewer-header">
+      <div>
+        <p class="app-kicker">Manga Viewer</p>
+        <h2 id="mangaViewerTitle">漫画グループ</h2>
+        <p id="mangaViewerCount" class="muted small-note"></p>
+      </div>
+      <button id="closeMangaViewerButton" class="ghost-button" type="button">閉じる</button>
+    </header>
+
+    <div id="mangaViewerImages" class="manga-viewer-images"></div>
   </dialog>
 
   <dialog id="imagePreviewDialog" class="image-preview-dialog">

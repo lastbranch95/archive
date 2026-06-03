@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.5.0";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
@@ -58,16 +58,20 @@ function bindEvents() {
 
   document.getElementById("filterSelect").addEventListener("change", handleFilterChange);
 
+  document.getElementById("mangaGroupList").addEventListener("click", handleMangaGroupClick);
+
   document.getElementById("exportButton").addEventListener("click", exportJson);
   document.getElementById("importInput").addEventListener("change", importJson);
 
   document.getElementById("closeDetailButton").addEventListener("click", closeDetail);
   document.getElementById("saveDetailButton").addEventListener("click", saveDetailChanges);
   document.getElementById("detailDeleteButton").addEventListener("click", toggleDeleteFromDetail);
+  document.getElementById("detailDownloadButton").addEventListener("click", downloadSelectedDetailImage);
   document.getElementById("toggleImageInfoButton").addEventListener("click", toggleImageInfoPanel);
 
   document.getElementById("detailImage").addEventListener("click", openImagePreview);
   document.getElementById("closePreviewButton").addEventListener("click", closeImagePreview);
+  document.getElementById("closeMangaViewerButton").addEventListener("click", closeMangaViewer);
 
   document.getElementById("changePinButton").addEventListener("click", changePin);
   document.getElementById("autoLockSelect").addEventListener("change", saveAutoLockSetting);
@@ -149,7 +153,7 @@ function closeSettings() {
 }
 
 function closeOpenDialogs() {
-  ["imagePreviewDialog", "detailDialog"].forEach((id) => {
+  ["imagePreviewDialog", "detailDialog", "mangaViewerDialog"].forEach((id) => {
     const dialog = document.getElementById(id);
     if (dialog && dialog.open) dialog.close();
   });
@@ -258,6 +262,7 @@ async function loadAndRender() {
   renderFilterOptions();
   renderStats();
   renderArchiveList();
+  renderMangaGroups();
   updateDataSummary();
 }
 
@@ -279,6 +284,8 @@ async function saveArchiveItem() {
     memo: document.getElementById("memoInput").value.trim(),
     tags: parseTags(document.getElementById("tagsInput").value),
     category: document.getElementById("categoryInput").value,
+    mangaTitle: normalizeMangaTitle(document.getElementById("mangaTitleInput").value),
+    mangaPage: parsePageNumber(document.getElementById("mangaPageInput").value),
     isFavorite: document.getElementById("favoriteInput").checked,
     isNsfw: document.getElementById("nsfwInput").checked,
     author: "",
@@ -319,6 +326,8 @@ function normalizeItem(item) {
     isNsfw: Boolean(item.isNsfw),
     isDeleted: Boolean(item.isDeleted),
     deletedAt: item.deletedAt || null,
+    mangaTitle: normalizeMangaTitle(item.mangaTitle || item.groupTitle || ""),
+    mangaPage: parsePageNumber(item.mangaPage || item.pageNumber),
     createdAt: item.createdAt || new Date().toISOString(),
     updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
   };
@@ -345,15 +354,210 @@ function parseTags(value) {
   return normalizeTagList(value);
 }
 
+function normalizeMangaTitle(value) {
+  return String(value || "").trim();
+}
+
+function parsePageNumber(value) {
+  const number = Number.parseInt(value, 10);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function createImageFileName(item) {
+  const mimeType = getMimeTypeFromDataUrl(item.image);
+  const extensionMap = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif"
+  };
+
+  const extension = extensionMap[mimeType] || "png";
+  const date = String(item.createdAt || new Date().toISOString()).slice(0, 10);
+  const title = item.mangaTitle
+    ? item.mangaTitle.replace(/[\\/:*?"<>|]/g, "_").slice(0, 36)
+    : "archive";
+
+  const page = item.mangaPage ? `-${String(item.mangaPage).padStart(3, "0")}` : "";
+  return `${title}${page}-${date}.${extension}`;
+}
+
+function downloadDataUrl(dataUrl, fileName) {
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function getVisibleItemsForGrouping() {
+  return archiveItems.filter((item) => {
+    if (item.isDeleted) return false;
+    if (!nsfwUnlocked && item.isNsfw) return false;
+    return true;
+  });
+}
+
 function clearForm() {
   document.getElementById("imageInput").value = "";
   document.getElementById("memoInput").value = "";
   document.getElementById("tagsInput").value = "";
   document.getElementById("categoryInput").value = "未分類";
+  document.getElementById("mangaTitleInput").value = "";
+  document.getElementById("mangaPageInput").value = "";
   document.getElementById("favoriteInput").checked = false;
   document.getElementById("nsfwInput").checked = false;
   updateSelectedFileName();
 }
+
+
+function buildMangaGroups() {
+  const groupMap = new Map();
+
+  getVisibleItemsForGrouping()
+    .filter((item) => item.mangaTitle)
+    .forEach((item) => {
+      if (!groupMap.has(item.mangaTitle)) {
+        groupMap.set(item.mangaTitle, []);
+      }
+
+      groupMap.get(item.mangaTitle).push(item);
+    });
+
+  return [...groupMap.entries()]
+    .map(([title, items]) => {
+      const sortedItems = sortMangaPages(items);
+      return {
+        title,
+        items: sortedItems,
+        cover: sortedItems[0],
+        updatedAt: sortedItems.reduce((latest, item) => {
+          const itemDate = new Date(item.updatedAt || item.createdAt || 0);
+          return itemDate > latest ? itemDate : latest;
+        }, new Date(0))
+      };
+    })
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function sortMangaPages(items) {
+  return [...items].sort((a, b) => {
+    const pageA = a.mangaPage || 999999;
+    const pageB = b.mangaPage || 999999;
+
+    if (pageA !== pageB) {
+      return pageA - pageB;
+    }
+
+    return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+  });
+}
+
+function renderMangaGroups() {
+  const list = document.getElementById("mangaGroupList");
+  if (!list) return;
+
+  const groups = buildMangaGroups();
+
+  if (groups.length === 0) {
+    list.innerHTML = '<div class="empty-message">漫画グループはまだありません</div>';
+    return;
+  }
+
+  list.innerHTML = "";
+
+  groups.forEach((group) => {
+    const card = document.createElement("article");
+    card.className = "manga-group-card";
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.dataset.groupTitle = group.title;
+
+    card.innerHTML = `
+      <img src="${group.cover.image}" alt="漫画グループ表紙" />
+      <div class="manga-group-body">
+        <p class="manga-group-kicker">漫画グループ</p>
+        <h3>${escapeHtml(group.title)}</h3>
+        <p class="manga-group-meta">${group.items.length}ページ</p>
+      </div>
+    `;
+
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openMangaViewer(group.title);
+      }
+    });
+
+    list.appendChild(card);
+  });
+}
+
+function handleMangaGroupClick(event) {
+  const card = event.target.closest(".manga-group-card");
+  if (!card) return;
+
+  openMangaViewer(card.dataset.groupTitle);
+}
+
+function openMangaViewer(groupTitle) {
+  const groupItems = sortMangaPages(
+    getVisibleItemsForGrouping().filter((item) => item.mangaTitle === groupTitle)
+  );
+
+  if (groupItems.length === 0) {
+    alert("この漫画グループには表示できる画像がありません");
+    return;
+  }
+
+  const dialog = document.getElementById("mangaViewerDialog");
+  const title = document.getElementById("mangaViewerTitle");
+  const count = document.getElementById("mangaViewerCount");
+  const images = document.getElementById("mangaViewerImages");
+
+  title.textContent = groupTitle;
+  count.textContent = `${groupItems.length}ページ`;
+  images.innerHTML = "";
+
+  groupItems.forEach((item, index) => {
+    const page = document.createElement("section");
+    page.className = "manga-viewer-page";
+
+    page.innerHTML = `
+      <div class="manga-viewer-page-label">
+        ${item.mangaPage ? `${escapeHtml(item.mangaPage)}P` : `${index + 1}P`}
+      </div>
+      <img src="${item.image}" alt="${escapeHtml(groupTitle)} ${index + 1}ページ" />
+    `;
+
+    images.appendChild(page);
+  });
+
+  dialog.showModal();
+  lockBodyScroll();
+  resetAutoLockTimer();
+}
+
+function closeMangaViewer() {
+  const dialog = document.getElementById("mangaViewerDialog");
+
+  if (dialog.open) {
+    dialog.close();
+    unlockBodyScroll();
+  }
+}
+
+function downloadSelectedDetailImage() {
+  if (!selectedDetailItemId) return;
+
+  const item = archiveItems.find((archiveItem) => archiveItem.id === selectedDetailItemId);
+  if (!item || !item.image) return;
+
+  downloadDataUrl(item.image, createImageFileName(item));
+  resetAutoLockTimer();
+}
+
 
 function renderStats() {
   const visibleActiveItems = archiveItems.filter((item) => {
@@ -412,6 +616,12 @@ function renderArchiveList() {
         <span class="pill">${escapeHtml(item.category || "未分類")}</span>
         <p class="card-memo">${escapeHtml(item.memo || "メモなし")}</p>
 
+        ${item.mangaTitle ? `
+          <div class="manga-mini-info">
+            漫画: ${escapeHtml(item.mangaTitle)}${item.mangaPage ? ` / ${escapeHtml(item.mangaPage)}P` : ""}
+          </div>
+        ` : ""}
+
         ${visibleTags.length > 0 ? `
           <div class="tag-row">
             ${visibleTags
@@ -457,6 +667,10 @@ function matchesFilter(item) {
     return !item.isDeleted && !item.isNsfw && isUnorganized(item);
   }
 
+  if (currentFilter === "manga") {
+    return !item.isDeleted && !item.isNsfw && Boolean(item.mangaTitle);
+  }
+
   if (currentFilter === "private") {
     return !item.isDeleted && item.isNsfw && nsfwUnlocked;
   }
@@ -486,6 +700,8 @@ function matchesSearch(item) {
     item.category,
     item.author,
     item.work,
+    item.mangaTitle,
+    item.mangaPage,
     ...(item.tags || [])
   ]
     .join(" ")
@@ -526,6 +742,8 @@ function openDetail(item) {
   document.getElementById("detailCategoryInput").value = item.category || "未分類";
   document.getElementById("detailTagsInput").value = (item.tags || []).join(", ");
   document.getElementById("detailMemoInput").value = item.memo || "";
+  document.getElementById("detailMangaTitleInput").value = item.mangaTitle || "";
+  document.getElementById("detailMangaPageInput").value = item.mangaPage || "";
   document.getElementById("detailFavoriteInput").checked = Boolean(item.isFavorite);
   document.getElementById("detailNsfwInput").checked = Boolean(item.isNsfw);
   document.getElementById("detailDeleteButton").textContent = item.isDeleted ? "復元" : "削除";
@@ -554,6 +772,8 @@ async function saveDetailChanges() {
   item.category = document.getElementById("detailCategoryInput").value;
   item.tags = parseTags(document.getElementById("detailTagsInput").value);
   item.memo = document.getElementById("detailMemoInput").value.trim();
+  item.mangaTitle = normalizeMangaTitle(document.getElementById("detailMangaTitleInput").value);
+  item.mangaPage = parsePageNumber(document.getElementById("detailMangaPageInput").value);
   item.isFavorite = document.getElementById("detailFavoriteInput").checked;
   item.isNsfw = document.getElementById("detailNsfwInput").checked;
   item.updatedAt = new Date().toISOString();
@@ -769,7 +989,8 @@ function renderFilterOptions() {
   const options = [
     { value: "active", label: "通常" },
     { value: "favorite", label: "お気に入り" },
-    { value: "unorganized", label: "未整理" }
+    { value: "unorganized", label: "未整理" },
+    { value: "manga", label: "漫画" }
   ];
 
   if (nsfwUnlocked) {
