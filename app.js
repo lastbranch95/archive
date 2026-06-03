@@ -1,7 +1,7 @@
 const DB_NAME = "archiveDb";
 const STORE_NAME = "items";
 const DB_VERSION = 1;
-const APP_VERSION = "0.5.6";
+const APP_VERSION = "0.5.7";
 const DEFAULT_PIN = "0908";
 
 const STORAGE_KEYS = {
@@ -601,13 +601,20 @@ function openMangaViewer(groupTitle) {
   }
 
   const savedIndex = getMangaProgress(groupTitle);
-  currentMangaPageIndex = Math.min(Math.max(savedIndex, 0), currentMangaPages.length - 1);
+  const safeSavedIndex = Math.min(Math.max(savedIndex, 0), currentMangaPages.length - 1);
+
+  if (safeSavedIndex > 0 && safeSavedIndex < currentMangaPages.length) {
+    const resume = confirm(`前回 ${safeSavedIndex + 1} / ${currentMangaPages.length} ページまで読んでいます。\n途中から読みますか？`);
+    currentMangaPageIndex = resume ? safeSavedIndex : 0;
+  } else {
+    currentMangaPageIndex = 0;
+  }
 
   const dialog = document.getElementById("mangaViewerDialog");
   const title = document.getElementById("mangaViewerTitle");
 
   title.textContent = groupTitle;
-  dialog.classList.remove("is-fullscreen", "is-ui-hidden");
+  dialog.classList.remove("is-fullscreen", "is-ui-hidden", "is-scroll-reading");
   updateMangaViewerModeUi();
   renderMangaViewer();
 
@@ -659,7 +666,10 @@ function updateMangaViewerModeUi() {
     }
   }
 
-  if (dialog) dialog.classList.toggle("is-ui-hidden", mangaUiHidden);
+  if (dialog) {
+    dialog.classList.toggle("is-ui-hidden", mangaUiHidden);
+    dialog.classList.toggle("is-scroll-reading", mangaViewerMode === "scroll");
+  }
 }
 function renderMangaViewer() {
   if (mangaViewerMode === "scroll") {
@@ -824,7 +834,7 @@ function closeMangaViewer() {
     unlockBodyScroll();
   }
 
-  dialog.classList.remove("is-fullscreen", "is-ui-hidden");
+  dialog.classList.remove("is-fullscreen", "is-ui-hidden", "is-scroll-reading");
 
   if (document.fullscreenElement && document.exitFullscreen) {
     document.exitFullscreen().catch(() => {});
